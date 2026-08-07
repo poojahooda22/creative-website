@@ -117,10 +117,25 @@ export function MemoryField() {
         })}
       </div>
 
-      <div className="field__floor">
-        <div className="field__floor-inner">
-          <div className="field__floor-text">
-            {BRAND.floor.map((line) => <span key={line}>{line}</span>)}
+      {/* The same block twice. The near copy is sheared onto the floor and cut
+          off at this section's edge; the far copy is flat and begins one pixel
+          above that cut, continuing over the panel below. A letter leaves one
+          clip and reappears in the other at the same pixel, so the type walks
+          off the floor and stands up instead of either stopping dead at the
+          boundary or running loose across the next section. */}
+      <div className="field__catcher" aria-hidden="true">
+        <div className="field__catcher-wrap field__catcher-wrap--near">
+          <div className="field__catcher-plane">
+            <div className="field__catcher-text field__catcher-text--near">
+              {BRAND.floor.map((line) => <span key={line}>{line}</span>)}
+            </div>
+          </div>
+        </div>
+        <div className="field__catcher-wrap field__catcher-wrap--far">
+          <div className="field__catcher-plane field__catcher-plane--flat">
+            <div className="field__catcher-text field__catcher-text--far">
+              {BRAND.floor.map((line) => <span key={line}>{line}</span>)}
+            </div>
           </div>
         </div>
       </div>
