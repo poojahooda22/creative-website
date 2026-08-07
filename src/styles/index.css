@@ -27,7 +27,7 @@
   --hairline: rgba(21, 10, 8, 0.28);
 
   /* the second theme's ground — swap with ?alt=green in the URL */
-  --theme-alt: #F40C3F;    /* crimson                       (244, 12, 63) */
+  --theme-alt: #A8D91E;    /* lime                          (168,217, 30) */
 
   --font-display: 'Anton', 'Arial Narrow', sans-serif;
   --font-mono: 'Space Mono', ui-monospace, monospace;
