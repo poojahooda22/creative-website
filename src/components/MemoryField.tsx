@@ -1,0 +1,110 @@
+import { useEffect, useRef } from 'react';
+import { MemoryField as Engine, POOL } from '../lib/memory-field';
+import { subscribe, prefersReducedMotion } from '../lib/ticker';
+import { BRAND } from '../lib/brand';
+import { STAR_PATH } from '../lib/star';
+
+/**
+ * The arrivals corridor.
+ *
+ * At the vanishing point sits the index: a ring holding a lattice of cells,
+ * turning slowly, with a light running through it. Deliberately not a face.
+ * A face would make the page about a character, and this page is about the
+ * thing that catches what you said. The lattice reads as storage, and it is
+ * the same vocabulary as the bubbles in the section above rather than a second
+ * unrelated mascot.
+ *
+ * Cards fly out of it carrying real episodes, and the type on the floor recedes
+ * into the same point.
+ */
+export function MemoryField() {
+  const hostRef = useRef<HTMLElement>(null);
+  const coreRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    const core = coreRef.current;
+    const stage = stageRef.current;
+    if (!host || !core || !stage) return;
+
+    const field = new Engine(host, core, stage);
+
+    if (prefersReducedMotion()) {
+      field.drawStatic();
+      return () => field.dispose();
+    }
+
+    let unsubscribe: (() => void) | undefined;
+    const presence = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !unsubscribe) {
+          unsubscribe = subscribe((_elapsed, delta) => field.tick(delta));
+        } else if (!entry.isIntersecting && unsubscribe) {
+          unsubscribe();
+          unsubscribe = undefined;
+        }
+      },
+      { threshold: 0 },
+    );
+    presence.observe(host);
+
+    const resizeObserver = new ResizeObserver(() => field.resize());
+    resizeObserver.observe(host);
+
+    return () => {
+      presence.disconnect();
+      resizeObserver.disconnect();
+      unsubscribe?.();
+      field.dispose();
+    };
+  }, []);
+
+  return (
+    <section className="field" ref={hostRef}>
+      <div className="field__core" ref={coreRef} aria-hidden="true">
+        <span className="field__core-ring" />
+        <span className="field__core-lattice">
+          {Array.from({ length: 9 }, (_, i) => <i key={i} style={{ animationDelay: `${i * 0.18}s` }} />)}
+        </span>
+      </div>
+
+      <div className="field__stage" ref={stageRef} aria-hidden="true">
+        {Array.from({ length: POOL }, (_, i) => {
+          // every fourth object is a star rather than a frame, so the field has
+          // a rhythm instead of reading as one repeated card
+          if (i % 4 === 3) {
+            return (
+              <div className="flyer flyer--star is-parked" key={i}>
+                <svg className="flyer__star" viewBox="0 0 100 100"><path d={STAR_PATH} /></svg>
+              </div>
+            );
+          }
+          const episode = BRAND.episodes[i % BRAND.episodes.length];
+          return (
+            <div className="flyer is-parked" key={i}>
+              <div className="flyer__face">
+                <span className="flyer__plate">
+                  {episode.image
+                    ? <img src={`/episodes/${episode.image}`} alt="" />
+                    : null}
+                </span>
+                <span className="flyer__caption">{episode.caption}</span>
+              </div>
+              <span className="flyer__side flyer__side--x" />
+              <span className="flyer__side flyer__side--y" />
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="field__floor">
+        <div className="field__floor-inner">
+          <div className="field__floor-text">
+            {BRAND.floor.map((line) => <span key={line}>{line}</span>)}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}

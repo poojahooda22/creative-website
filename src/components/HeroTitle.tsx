@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { subscribe, prefersReducedMotion } from '../lib/ticker';
 import { onIntro } from '../lib/events';
+import { STAR_PATH } from '../lib/star';
 
 const DIRECTIONS = ['to-top', 'to-right', 'to-bottom', 'to-left'] as const;
 const FLIP_CHANCE = 0.01;   // per frame, per title: sparse on purpose
@@ -10,10 +11,9 @@ const FLIP_HOLD_MS = 2000;
 /** Only letters and digits swap; punctuation and symbols stay put. */
 const isSwappable = (ch: string): boolean => /[\p{L}\p{N}]/u.test(ch);
 
-/** The mark that separates the two words: a four-point star drawn as one path,
- *  each arm a curve pulled in toward the centre so the points stay needle-sharp. */
+/** The mark that separates the two words. The path is shared with the closing
+ *  panel's stars, so the site has one star rather than two that nearly match. */
 const STAR_CHAR = '✦';
-const STAR_PATH = 'M50 2 C53 33 67 47 98 50 C67 53 53 67 50 98 C47 67 33 53 2 50 C33 47 47 33 50 2 Z';
 
 /**
  * The line is a poster: it should touch both edges whatever it says. The size

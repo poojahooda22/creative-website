@@ -77,9 +77,9 @@ export function SiteHead() {
     <header className="head" ref={headRef} aria-label="Main">
       <div className="head__cell head__cell--logo">
         <span className="head__rise">
-          <a className="logo" href="/" aria-label={`${BRAND.name} home`}>
+          <a className="logo" href={BRAND.repo} target="_blank" rel="noreferrer noopener"
+            aria-label={`${BRAND.name} on GitHub`}>
             <span className="logo__mark" aria-hidden="true"><i /><i /><i /></span>
-            <span className="logo__name">{BRAND.name}</span>
           </a>
         </span>
       </div>
@@ -91,11 +91,11 @@ export function SiteHead() {
       </div>
 
       <nav className="head__cell head__cell--nav" aria-label="Sections">
-        {BRAND.nav.map((label) => (
-          <span className="head__rise" key={label}>
-            <a className="navlink" href={`#${label.toLowerCase()}`}>
+        {BRAND.nav.map((item) => (
+          <span className="head__rise" key={item.label}>
+            <a className="navlink" href={item.href}>
               <span className="navlink__caret" aria-hidden="true" />
-              {label}
+              {item.label}
             </a>
           </span>
         ))}
@@ -132,7 +132,10 @@ export function SiteHead() {
       <div className="head__cell head__cell--status">
         <span className="head__rise status">{BRAND.status.claim}</span>
         <span className="head__rise status">
-          {BRAND.status.release} <em>{BRAND.status.action}</em>
+          {BRAND.status.release}{' '}
+          <a className="status__link" href={BRAND.repo} target="_blank" rel="noreferrer noopener">
+            {BRAND.status.action}
+          </a>
         </span>
       </div>
 

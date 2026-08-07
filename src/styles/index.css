@@ -97,8 +97,9 @@ body {
 .head {
   position: relative; z-index: 20;
   display: grid;
-  /* the first cell carries the mark and the wordmark, so it is wider than tall */
-  grid-template-columns: 11rem minmax(15rem, 1.4fr) minmax(20rem, 1.3fr) 3rem 3rem minmax(16rem, 1fr);
+  /* the mark needs about 29px, so the first cell is trimmed to just hold it and
+     the width it gives up goes to the terminal, which has text to show */
+  grid-template-columns: 3.5rem minmax(18rem, 1.6fr) minmax(20rem, 1.3fr) 3rem 3rem minmax(16rem, 1fr);
   height: var(--head-h);
   border-bottom: var(--edge) solid var(--ink);
   opacity: 0;                         /* the intro timeline lifts this */
@@ -112,16 +113,9 @@ body {
 .head__cell:first-child { border-left: 0; }
 .head__rise { display: block; }
 
-.head__cell--logo { justify-content: flex-start; padding: 0 1.3rem; }
-.logo {
-  display: flex; align-items: center; gap: 0.8rem;
-  color: var(--ink); text-decoration: none;
-}
+.head__cell--logo { justify-content: center; }
+.logo { display: block; color: var(--ink); text-decoration: none; }
 .logo__mark { display: flex; gap: 0.28rem; align-items: flex-end; }
-.logo__name {
-  font-family: var(--font-display); font-size: 1.4rem;
-  letter-spacing: 0.03em; line-height: 1;
-}
 .logo i { display: block; width: 0.42rem; background: var(--ink); }
 .logo i:nth-child(1) { height: 1.5rem; }
 .logo i:nth-child(2) { height: 2.1rem; }
@@ -217,8 +211,14 @@ body {
   color: var(--ink);
 }
 .status + .status { border-top: var(--edge) solid var(--ink); }
-.status em { font-style: normal; font-family: var(--font-mono); font-weight: 700;
-             font-size: 0.72rem; letter-spacing: 0.08em; margin-left: 0.4rem; }
+.status__link {
+  font-family: var(--font-mono); font-weight: 700;
+  font-size: 0.72rem; letter-spacing: 0.08em; margin-left: 0.4rem;
+  color: var(--ink); text-decoration: none;
+  border-bottom: var(--edge) solid transparent;
+  transition: border-color 0.25s ease;
+}
+.status__link:hover { border-bottom-color: var(--ink); }
 
 /* ------------------------------------------------------------------- hero */
 /* the hero occupies exactly one screen below the header; the curtain takes
@@ -405,9 +405,6 @@ body {
     height: 4.5rem;
   }
   .head__cell--nav, .head__cell--social, .head__cell--status { display: none; }
-  /* the cell is square again at this width, so the wordmark would be clipped */
-  .head__cell--logo { justify-content: center; padding: 0; }
-  .logo__name { display: none; }
   .hero__title { font-size: 13vw; white-space: normal; }
 }
 
@@ -416,4 +413,462 @@ body {
   .char.to-top .char__inner, .char.to-bottom .char__inner,
   .char.to-left .char__inner, .char.to-right .char__inner { animation: none; }
   .head { opacity: 1; }
+}
+
+/* ------------------------------------------------- the corridor + about box */
+/* The panel and the SVG far wall are moved by the SAME --offset-y, one via a
+   transform and one via the geometry of the lines. That shared number is the
+   whole illusion: the panel stays welded into the end of the corridor while the
+   room swings around it. The section clips, on purpose, so the panel travels
+   through the frame rather than politely staying inside it. */
+.room {
+  --panel-w: 46rem;
+  position: relative; z-index: 3;
+  /* This padding is the corridor's ceiling and floor, and it is also the budget
+     the panel is allowed to travel within. The sweep in perspective-room.ts is
+     set to match it exactly, which is what guarantees the panel can never be
+     pushed past an edge and have its content clipped away. Change one and the
+     other has to change with it. */
+  padding: 15rem 0;
+  overflow: hidden;
+}
+.room__grid {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+.room__grid path {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.room__panel {
+  position: relative; z-index: 2;
+  width: var(--panel-w);
+  margin: 0 auto;
+  background: var(--ground);
+  border: var(--edge) solid var(--ink);
+  transform: translate3d(0, var(--offset-y, 0px), 0);
+  will-change: transform;
+}
+.room__label {
+  background: var(--ink); color: var(--ground);
+  font-family: var(--font-mono); font-size: 0.62rem; font-weight: 700;
+  letter-spacing: 0.22em; text-transform: uppercase; text-align: center;
+  padding: 0.6rem 0;
+}
+/* the bubbles are thrown out of the tiles, so they need to be free to leave the
+   panel and fall through the corridor around it */
+.room__canvas {
+  position: absolute; inset: 0; z-index: 4;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+/* the explanation is the reason this section exists, so it takes the larger
+   share of the panel and the grid below it reads as the appendix */
+.room__body {
+  padding: 5.5rem 4.25rem 6rem;
+  display: flex; flex-direction: column; gap: 2rem;
+}
+.room__body p {
+  font-family: var(--font-serif);
+  font-size: 1.78rem; line-height: 1.4;
+}
+
+/* -------------------------------------------------- the specification grid */
+/* The hatch sits behind the grid and shows through wherever no tile is placed,
+   so the two unclaimed cells read as deliberate negative space rather than as
+   a layout that ran out of content. */
+/* The grid fills the panel edge to edge. The panel's own border draws the
+   outside, so the tiles only carry their right and bottom edges. */
+.hood__grid {
+  position: relative; z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  /* rows a touch shorter than the columns are wide, so the appendix stays an
+     appendix and the explanation above keeps the larger share of the panel */
+  grid-auto-rows: calc(var(--panel-w) / 4.8);
+  background: repeating-linear-gradient(-45deg,
+    transparent 0 5px, var(--hairline) 5px 6px);
+}
+/* The observed tile is never itself clipped, and that is a correctness
+   requirement rather than a style preference. An element clipped to zero area
+   reports zero intersection, so a tile that hid itself with clip-path could
+   never trigger its own reveal: it would sit there waiting for a signal it had
+   made impossible. The clip lives on the inner box instead, which also keeps
+   the outer box hit-testable so hover still lands. */
+.hood__tile { position: relative; }
+.hood__tile__inner {
+  height: 100%; padding: 1.3rem;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  background: var(--ground);
+  border-right: var(--edge) solid var(--ink);
+  border-bottom: var(--edge) solid var(--ink);
+  /* wiped in from the left once, as the tile comes into view */
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.9s cubic-bezier(0.86, 0, 0.07, 1),
+              transform 0.35s cubic-bezier(0.86, 0, 0.07, 1);
+}
+.hood__tile.is-revealed .hood__tile__inner { clip-path: inset(0 0 0 0); }
+/* No hover transform. Shrinking the inner box uncovered the hatch behind it, so
+   hovering drew a ring of diagonal lines around the tile. Hover throws bubbles
+   and moves nothing. */
+.hood__tile--wide .hood__tile__inner {
+  justify-content: center; align-items: center; text-align: center;
+  padding: 1.3rem 2.5rem;
+}
+.hood__tile--brand .hood__tile__title {
+  font-family: var(--font-display); font-size: 3.4rem; line-height: 0.85;
+  text-transform: uppercase;
+}
+.hood__tile--text .hood__tile__title,
+.hood__tile--wide .hood__tile__title {
+  font-family: var(--font-serif); font-size: 1.4rem; line-height: 1.2;
+}
+.hood__tile--wide .hood__tile__title { font-size: 1.7rem; }
+.hood__tile__note {
+  margin-top: 0.7rem;
+  font-family: var(--font-mono); font-size: 0.58rem; line-height: 1.5;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft);
+}
+/* above the tiles: the bubbles are thrown out of them, not trapped inside */
+@media (max-width: 900px) {
+  .room { --panel-w: 88vw; padding: 8rem 0; }
+  .room__body { padding: 2rem 1.8rem 2.4rem; gap: 1.2rem; }
+  .room__body p { font-size: 1.15rem; }
+  .hood__tile__inner { padding: 0.7rem; }
+  .hood__tile--brand .hood__tile__title { font-size: 1.5rem; }
+  .hood__tile--text .hood__tile__title { font-size: 0.85rem; }
+  .hood__tile--wide .hood__tile__title { font-size: 1.05rem; }
+  .hood__tile__note { font-size: 0.48rem; margin-top: 0.4rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .room__panel { transform: none; }
+  .hood__tile__inner { transition: none; }
+}
+
+/* ------------------------------------------------ the arrivals corridor */
+/* Everything in this section converges on one measured point: the rays are
+   drawn to it, the 3D stage takes it as its perspective-origin, and the floor
+   type recedes into it. That single shared point is what makes a fan of flat
+   lines, a pile of transformed divs and a block of text read as one space. */
+.field {
+  position: relative; z-index: 4;   /* above the panel below, which it overlaps */
+  height: 100vh;
+  /* deliberately NOT hidden: the floor type is meant to run past the bottom
+     edge and over the next section. The card stage below keeps its own clip,
+     so the flying objects are still contained. */
+  overflow: visible;
+  --scroll-progress: 0.5;
+  --distortion: 180;
+  --floor-perspective: 900px;
+}
+.field__rays {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+.field__rays path {
+  fill: none; stroke: var(--ink); stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* the index at the vanishing point: a ring of cells, turning, with a light
+   running through it. Not a face: this page is about the thing that catches
+   what you said, not about a character. */
+.field__core {
+  position: absolute; top: 34%; left: 50%;
+  width: 5.6rem; height: 5.6rem;
+  transform: translate3d(-50%, -50%, 0);
+  display: grid; place-items: center;
+  z-index: 2;
+}
+.field__core-ring {
+  position: absolute; inset: 0;
+  border: var(--edge) solid var(--ink);
+  border-radius: 50%;
+  background: var(--ground);
+  animation: core-turn 10s linear infinite;
+}
+.field__core-ring::after {
+  content: ''; position: absolute; top: -0.22rem; left: 50%;
+  width: 0.44rem; height: 0.44rem; margin-left: -0.22rem;
+  background: var(--ink); border-radius: 50%;
+}
+@keyframes core-turn { to { transform: rotate(360deg); } }
+
+.field__core-lattice {
+  position: relative; z-index: 1;
+  display: grid; grid-template-columns: repeat(3, 0.32rem); gap: 0.34rem;
+}
+.field__core-lattice i {
+  display: block; width: 0.32rem; height: 0.32rem;
+  background: var(--ink); opacity: 0.18;
+  animation: cell-write 1.9s ease-in-out infinite;
+}
+@keyframes cell-write { 0%, 70%, 100% { opacity: 0.18; } 20% { opacity: 1; } }
+
+/* ------------------------------------------------------ the flying cards */
+.field__stage {
+  position: absolute; top: -50vh; bottom: -50vh; left: 0; right: 0;
+  perspective: 1000px;
+  transform-style: preserve-3d;
+  overflow: hidden;
+}
+.flyer {
+  --x: 0px; --y: 0px; --z: -20000px; --rx: 0; --ry: 0; --s: 0; --depth: 0.75rem;
+  /* born at the core, which the engine measures in stage coordinates */
+  position: absolute; top: var(--core-y, 50%); left: var(--core-x, 50%);
+  width: 17rem; margin: -3rem 0 0 -8.5rem;
+  transform:
+    translate3d(var(--x), var(--y), var(--z))
+    rotateX(calc(var(--rx) * 1deg))
+    rotateY(calc(var(--ry) * 1deg))
+    scale(var(--s));
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.flyer.is-parked { display: none; }
+
+/* a portrait plate with its caption beneath, the shape of a photo in a frame */
+.flyer { width: 11rem; margin: -7.5rem 0 0 -5.5rem; }
+.flyer__face {
+  position: relative;
+  display: flex; flex-direction: column; gap: 0.6rem;
+  padding: 0.8rem 0.8rem 0.9rem;
+  background: var(--ground);
+  border: var(--edge) solid var(--ink);
+  backface-visibility: visible;
+}
+/* the back face, so a card turning away is still a solid object */
+.flyer__face::after {
+  content: ''; position: absolute; inset: 0;
+  background: var(--ground);
+  border: var(--edge) solid var(--ink);
+  transform: translateZ(calc(var(--depth) * -1)) rotateY(180deg);
+}
+/* Empty until a real portrait is dropped into public/episodes/ and named in
+   brand.ts. A hatched plate reads as a frame waiting for its photograph; a
+   stock face would read as somebody's memory, which it is not. */
+.flyer__plate {
+  display: block; width: 100%; aspect-ratio: 3 / 4;
+  border: var(--edge) solid var(--ink);
+  background: repeating-linear-gradient(-45deg,
+    transparent 0 5px, var(--hairline) 5px 6px);
+  overflow: hidden;
+}
+.flyer__plate img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.flyer__caption {
+  font-family: var(--font-mono); font-size: 0.5rem; font-weight: 700;
+  letter-spacing: 0.06em; line-height: 1.3; color: var(--ink);
+}
+
+/* the same star as the hero and the closing panel, tumbling with the frames */
+.flyer--star { width: 5rem; margin: -2.5rem 0 0 -2.5rem; }
+.flyer__star { display: block; width: 100%; height: auto; fill: var(--ink); }
+
+/* four lateral faces give the card real thickness as it tumbles past */
+.flyer__side { position: absolute; inset: 0; transform-style: preserve-3d; }
+.flyer__side::before, .flyer__side::after {
+  content: ''; position: absolute; background: var(--ground);
+  border: var(--edge) solid var(--ink);
+}
+.flyer__side--x::before, .flyer__side--x::after {
+  top: 0; bottom: 0; width: var(--depth);
+}
+.flyer__side--x::before { left: 0; transform-origin: left center; transform: rotateY(-90deg); }
+.flyer__side--x::after { right: 0; transform-origin: right center; transform: rotateY(90deg); }
+.flyer__side--y::before, .flyer__side--y::after {
+  left: 0; right: 0; height: var(--depth);
+}
+.flyer__side--y::before { top: 0; transform-origin: center top; transform: rotateX(90deg); }
+.flyer__side--y::after { bottom: 0; transform-origin: center bottom; transform: rotateX(-90deg); }
+
+/* -------------------------------------------------------- the floor type */
+/* A shear, not a rotation. The seventh number in the matrix pushes a point away
+   from the camera in proportion to how high it sits, so the block lies down as
+   a ground plane while every letter keeps its full height at the near edge.
+   Rotating it instead would foreshorten the bottom line and lose exactly the
+   thing that makes the last line enormous. */
+/* Spans from the vanishing point down to the floor of the section, and the
+   perspective converges on its top edge. That is what puts the far end of the
+   type at the core instead of at some horizon of its own. */
+.field__floor {
+  position: absolute; left: -100%; width: 300%;
+  top: var(--core-top, 34%); height: 92vh;
+  display: flex; align-items: flex-end;
+  perspective: var(--floor-perspective);
+  perspective-origin: 50% 0;
+  pointer-events: none;
+}
+/* The shear. The seventh number maps a point's height into depth, so with the
+   origin pinned to the bottom edge every line is pushed away from the camera in
+   proportion to how far above that edge it sits. The near line therefore keeps
+   its full height while the far one shrinks to nothing, which a rotation could
+   not do: rotating squashes the near edge too. */
+.field__floor-inner {
+  width: 100%;
+  transform-origin: 50% 100%;
+  transform: matrix3d(1, 0, 0, 0, 0, 1, var(--shear, 1.5), 0, 0, 0, 1, 0, 0, 0, 0, 1);
+}
+.field__floor-text {
+  /* Anchored at the bottom edge and pushed forward by scroll: the block starts
+     resting on the floor and walks off the near edge as the section passes,
+     rather than hovering in mid-air the whole way through. */
+  transform: translate3d(0, calc(var(--scroll-progress) * 68%), 0);
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 6.4vw, 7.6rem);
+  line-height: 1.06;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.field__floor-text span { display: block; }
+
+@media (max-width: 900px) {
+  .field { height: 120vh; }
+  .field__core { width: 4rem; height: 4rem; top: 30%; }
+  .flyer { width: 12rem; margin: -2.2rem 0 0 -6rem; }
+  .field__floor-inner { font-size: clamp(2.5rem, 14vw, 7rem); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field__core-ring, .field__core-lattice i { animation: none; }
+}
+
+/* -------------------------------------------------------- the closing panel */
+.cta {
+  position: relative; z-index: 3;
+  height: 100vh;
+  display: flex; flex-direction: column;
+  border-top: var(--edge) solid var(--ink);
+}
+/* the lattice is confined here, so it stops at the rule above the closing band
+   rather than running on underneath the mark */
+.cta__stage {
+  position: relative; flex: 1 1 auto;
+  display: grid; place-items: center;
+  overflow: hidden;
+}
+.cta__foot {
+  flex: none; width: 100%;
+  border-top: var(--edge) solid var(--ink);
+  background: var(--ground);
+  padding: 3rem 0;
+  display: grid; place-items: center;
+}
+.cta__grid {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+.cta__grid path {
+  fill: none; stroke: var(--ink); stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* the hover target is the whole hit area, so the disc does not flicker as the
+   pointer crosses from the button onto the disc it just opened */
+.cta__hover {
+  position: relative;
+  width: min(38rem, 62vh, 78vw); aspect-ratio: 1;
+  display: grid; place-items: center;
+}
+
+.cta__button {
+  position: relative; z-index: 3;
+  width: 6rem; height: 6rem; border-radius: 50%;
+  background: var(--ink); color: var(--ground);
+  border: 0; cursor: pointer;
+  display: grid; place-items: center;
+}
+.cta__label {
+  display: block;
+  font-family: var(--font-display); font-size: 1.6rem;
+  letter-spacing: 0.04em; line-height: 1;
+  will-change: transform;
+}
+.cta__button:focus-visible { outline: 2px solid var(--ink); outline-offset: 6px; }
+/* Once the disc is open the button has been swallowed by it. Leaving it visible
+   parks a black circle in the middle of the words, which is what the local
+   screenshot was showing. */
+.cta__hover.is-open .cta__button {
+  opacity: 0; transform: scale(1.5);
+  transition: opacity 0.45s ease 0.15s, transform 0.9s cubic-bezier(1, 0, 0, 1);
+  pointer-events: none;
+}
+.cta__button { transition: opacity 0.4s ease 0.2s, transform 0.5s ease; }
+
+/* The disc opens as a growing circular clip rather than a scale, so its edge
+   stays a true circle at every size and the type inside never stretches. */
+.cta__disc {
+  position: absolute; inset: 0; z-index: 2;
+  border-radius: 50%;
+  background: var(--ink);
+  display: grid; place-items: center; align-content: center; gap: 1.2rem;
+  clip-path: circle(0 at 50% 50%);
+  transition: clip-path 0.6s cubic-bezier(0.86, 0, 0.07, 1);
+}
+.cta__hover.is-open .cta__disc {
+  clip-path: circle(50% at 50% 50%);
+  /* an extreme ease on the way in: almost all the travel happens in the first
+     instant, which is what gives it a punch rather than a swell */
+  transition: clip-path 1s cubic-bezier(1, 0, 0, 1) 0.2s;
+}
+.cta__dots {
+  position: absolute; inset: 0; border-radius: 50%;
+  background-image: radial-gradient(var(--ground) 0.8px, transparent 0.9px);
+  background-size: 1.1rem 1.1rem;
+  opacity: 0.35;
+  transform: scale(1.1);
+  transition: transform 1.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cta__hover.is-open .cta__dots { transform: scale(1); }
+.cta__lines {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center;
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 8vw, 8rem); line-height: 0.9;
+  letter-spacing: 0.01em; color: var(--ground);
+}
+
+/* four stars drifting on their own clocks, so they never blink in unison */
+.cta__star {
+  position: absolute; width: 1.5rem; height: 1.5rem;
+  fill: var(--ground);
+  opacity: 0;
+}
+.cta__hover.is-open .cta__star { animation: star-twinkle 6s ease-in-out infinite; }
+.cta__star--0 { top: 16%; left: 24%; animation-delay: 0s; }
+.cta__star--1 { top: 26%; right: 20%; animation-delay: 1.4s; }
+.cta__star--2 { bottom: 24%; left: 19%; animation-delay: 2.6s; }
+.cta__star--3 { bottom: 17%; right: 26%; animation-delay: 3.8s; }
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.2; transform: translateY(0) scale(0.55) rotate(0deg); }
+  50%      { opacity: 1;   transform: translateY(-15%) scale(1) rotate(45deg); }
+}
+.cta__address {
+  position: relative;
+  font-family: var(--font-mono); font-size: 0.66rem; font-weight: 700;
+  letter-spacing: 0.16em; color: var(--ground);
+  margin-top: 1.6rem;
+  opacity: 0; transform: translate3d(0, 0.6rem, 0);
+  transition: opacity 0.5s ease 0.7s, transform 0.5s ease 0.7s;
+}
+.cta__hover.is-open .cta__address { opacity: 1; transform: none; }
+
+/* the same mark as the header, closing the page where it opened */
+.cta__mark { display: flex; gap: 0.62rem; align-items: flex-end; }
+.cta__mark i { display: block; width: 0.95rem; background: var(--ink); }
+.cta__mark i:nth-child(1) { height: 3.4rem; }
+.cta__mark i:nth-child(2) { height: 4.8rem; }
+.cta__mark i:nth-child(3) { height: 2.5rem; }
+
+@media (max-width: 900px) {
+  .cta__hover { width: 88vw; }
+  .cta__button { width: 4.5rem; height: 4.5rem; }
+  .cta__label { font-size: 1.15rem; }
+  .cta__address { font-size: 0.5rem; letter-spacing: 0.1em; }
 }
