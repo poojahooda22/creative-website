@@ -1,0 +1,419 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------- tokens */
+/* Only the GROUND changes between themes. The ink is the same colour in both,
+   and that is load-bearing rather than a style choice: the theme wipe is a
+   panel painted the second ground and blended with darken, which keeps the
+   per-channel minimum. Ink darker than both grounds therefore survives the
+   panel untouched, so the lines and the type never blink out while it passes.
+   The second ground must sit between the ink and the light ground on every
+   channel: lighter than the ink everywhere, darker than the light ground
+   everywhere. Pick one outside that band and either the panel stops covering
+   or it starts eating the artwork. */
+:root {
+  --ground: #FFF3EE;       /* warm white: the page          (255,243,238) */
+  --ink: #150A08;          /* near black: lines, type       ( 21, 10,  8) */
+  --ink-soft: rgba(21, 10, 8, 0.55);
+  --hairline: rgba(21, 10, 8, 0.28);
+
+  /* the second theme's ground — swap with ?alt=green in the URL */
+  --theme-alt: #F40C3F;    /* crimson                       (244, 12, 63) */
+
+  --font-display: 'Anton', 'Arial Narrow', sans-serif;
+  --font-mono: 'Space Mono', ui-monospace, monospace;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+
+  --head-h: 6rem;
+  --edge: 1px;
+}
+/* Candidates for the second ground, swapped with ?alt=<name>.
+   Every channel of each one sits inside the band the darken wipe needs:
+   at or above the ink (21,10,8) so the artwork survives the panel, and at or
+   below the light ground (255,243,238) so the panel actually covers the page.
+   A colour with a channel at 0, or a pastel above the ground, breaks one end
+   of that and the wipe stops being exact. */
+:root[data-alt="red"]    { --theme-alt: #F40C3F; }  /* crimson    (244, 12, 63) */
+:root[data-alt="green"]  { --theme-alt: #2FBF6B; }  /* grass      ( 47,191,107) */
+:root[data-alt="blue"]   { --theme-alt: #2B4EE6; }  /* cobalt     ( 43, 78,230) */
+:root[data-alt="violet"] { --theme-alt: #7A3BE8; }  /* violet     (122, 59,232) */
+:root[data-alt="orange"] { --theme-alt: #FF6A1F; }  /* orange     (255,106, 31) */
+:root[data-alt="amber"]  { --theme-alt: #F2C230; }  /* amber      (242,194, 48) */
+:root[data-alt="teal"]   { --theme-alt: #17A8B5; }  /* teal       ( 23,168,181) */
+:root[data-alt="pink"]   { --theme-alt: #E8309B; }  /* magenta    (232, 48,155) */
+:root[data-alt="lime"]   { --theme-alt: #A8D91E; }  /* lime       (168,217, 30) */
+:root[data-alt="navy"]   { --theme-alt: #1E2A78; }  /* indigo     ( 30, 42,120) */
+:root[data-alt="clay"]   { --theme-alt: #C2532B; }  /* terracotta (194, 83, 43) */
+:root[data-alt="slate"]  { --theme-alt: #4A5C6A; }  /* steel      ( 74, 92,106) */
+
+/* the contrast switch repaints the ground and nothing else */
+:root.theme-contrasted {
+  --ground: var(--theme-alt);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { background: var(--ground); }
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  overflow-x: hidden;
+}
+
+/* -------------------------------------------------------------- preloader */
+.pre {
+  position: fixed; inset: 0; z-index: 200;
+  background: var(--ground);
+  display: grid; place-items: center;
+}
+.pre__mark { position: relative; width: 4.5rem; height: 4.5rem; }
+.pre__v, .pre__h {
+  position: absolute; background: var(--ink); display: block;
+}
+.pre__v { width: 0.7rem; top: 0; bottom: 0; transform-origin: 50% 100%; }
+.pre__v:nth-child(1) { left: 0; }
+.pre__v:nth-child(2) { left: 1.9rem; }
+.pre__v:nth-child(3) { left: 3.8rem; }
+.pre__h { height: 0.7rem; left: 0; right: 0; transform-origin: 0 50%; }
+.pre__h { top: 0; }
+.pre__h--low { top: auto; bottom: 0; }
+
+/* ------------------------------------------------------- theme curtain */
+/* Parked off-screen left by this transform, never hidden: the tween owns x and
+   clears it again on finish, so the panel always returns here on its own.
+   Painted the second ground and blended with darken, it repaints the page
+   behind it while leaving anything darker than itself alone, so the artwork
+   rides straight through the sweep. An opaque panel would black it all out. */
+.theme-mask {
+  position: fixed; inset: 0; z-index: 150;
+  background: var(--theme-alt);
+  mix-blend-mode: darken;
+  transform: translate3d(-100%, 0, 0);
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* ----------------------------------------------------------------- header */
+.head {
+  position: relative; z-index: 20;
+  display: grid;
+  /* the first cell carries the mark and the wordmark, so it is wider than tall */
+  grid-template-columns: 11rem minmax(15rem, 1.4fr) minmax(20rem, 1.3fr) 3rem 3rem minmax(16rem, 1fr);
+  height: var(--head-h);
+  border-bottom: var(--edge) solid var(--ink);
+  opacity: 0;                         /* the intro timeline lifts this */
+}
+.head__cell {
+  position: relative;
+  border-left: var(--edge) solid var(--ink);
+  display: flex; align-items: center;
+  overflow: hidden;
+}
+.head__cell:first-child { border-left: 0; }
+.head__rise { display: block; }
+
+.head__cell--logo { justify-content: flex-start; padding: 0 1.3rem; }
+.logo {
+  display: flex; align-items: center; gap: 0.8rem;
+  color: var(--ink); text-decoration: none;
+}
+.logo__mark { display: flex; gap: 0.28rem; align-items: flex-end; }
+.logo__name {
+  font-family: var(--font-display); font-size: 1.4rem;
+  letter-spacing: 0.03em; line-height: 1;
+}
+.logo i { display: block; width: 0.42rem; background: var(--ink); }
+.logo i:nth-child(1) { height: 1.5rem; }
+.logo i:nth-child(2) { height: 2.1rem; }
+.logo i:nth-child(3) { height: 1.1rem; }
+
+.head__cell--term { align-items: center; padding: 0 1rem; }
+.term {
+  font-family: var(--font-mono); font-size: 0.62rem; line-height: 1.4;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft);
+  white-space: pre-wrap; margin: 0;
+}
+.term::after {
+  content: '▍'; animation: caret 1s steps(1) infinite; color: var(--ink);
+}
+@keyframes caret { 50% { opacity: 0; } }
+
+.head__cell--nav { display: flex; justify-content: space-around; }
+.navlink {
+  position: relative; display: inline-flex; align-items: center; gap: 0.5rem;
+  font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--ink); text-decoration: none; padding: 0.35rem 0.2rem;
+}
+.navlink__caret {
+  width: 0; height: 0; opacity: 0;
+  border-left: 0.3rem solid var(--ink);
+  border-top: 0.22rem solid transparent;
+  border-bottom: 0.22rem solid transparent;
+}
+.navlink:hover .navlink__caret { animation: blink-in 0.45s steps(1) forwards; }
+@keyframes blink-in {
+  0%, 40% { opacity: 0; } 20%, 60%, 100% { opacity: 1; }
+}
+.navlink:hover { text-shadow: 0 0 1px currentColor; }
+.navlink:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+.head__cell--social { flex-direction: column; }
+.social {
+  flex: 1; width: 100%; display: grid; place-items: center;
+  position: relative; overflow: hidden;
+  color: var(--ink); text-decoration: none;
+  font-family: var(--font-mono); font-size: 0.6rem; font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.social + .social { border-top: var(--edge) solid var(--ink); }
+.social::before {
+  content: ''; position: absolute; inset: 0; background: var(--ink);
+  transform: scale(0, 1); transform-origin: 0 50%;
+  transition: transform 0.3s cubic-bezier(1, 0, 0, 1);
+}
+.social span {
+  position: relative; z-index: 1; display: grid; place-items: center;
+  transition: color 0.3s cubic-bezier(1, 0, 0, 1);
+}
+.social svg { display: block; }
+.social:hover::before { transform: scale(1, 1); }
+.social:hover span { color: var(--ground); }
+
+/* the button fills its cell so the hover wipe reads as the whole cell filling,
+   the same left-origin scale the social cells use */
+.head__cell--toggle { padding: 0; }
+.contrast {
+  width: 100%; height: 100%;
+  display: grid; place-items: center;
+  position: relative; overflow: hidden;
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--ink);
+  transition: color 0.3s cubic-bezier(1, 0, 0, 1);
+}
+.contrast::before {
+  content: ''; position: absolute; inset: 0; background: var(--ink);
+  transform: scale(0, 1); transform-origin: 0 50%;
+  transition: transform 0.3s cubic-bezier(1, 0, 0, 1);
+}
+.contrast:hover::before { transform: scale(1, 1); }
+.contrast:hover { color: var(--ground); }
+/* half-filled disc, drawn in currentColor so it inverts with the cell */
+.contrast__icon {
+  position: relative; z-index: 1;
+  width: 1.35rem; height: 1.35rem; border-radius: 50%;
+  border: var(--edge) solid currentColor; overflow: hidden;
+}
+.contrast__icon::after {
+  content: ''; position: absolute; inset: 0; background: currentColor;
+  clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
+}
+.contrast:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; }
+
+.head__cell--status { flex-direction: column; align-items: stretch; }
+.status {
+  flex: 1; display: flex; align-items: center; padding: 0 1.1rem;
+  font-family: var(--font-serif); font-size: 0.95rem; letter-spacing: 0.01em;
+  color: var(--ink);
+}
+.status + .status { border-top: var(--edge) solid var(--ink); }
+.status em { font-style: normal; font-family: var(--font-mono); font-weight: 700;
+             font-size: 0.72rem; letter-spacing: 0.08em; margin-left: 0.4rem; }
+
+/* ------------------------------------------------------------------- hero */
+/* the hero occupies exactly one screen below the header; the curtain takes
+   whatever height the rails and the display line leave behind */
+.hero {
+  position: relative; z-index: 10;
+  height: calc(100svh - var(--head-h));
+  display: flex; flex-direction: column;
+}
+.sep, .hero__title { flex: none; }
+
+.wave {
+  position: relative;
+  flex: 1 1 auto; min-height: 12rem;
+  overflow: hidden;
+  cursor: crosshair;
+}
+.wave__svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.wave__line { fill: none; stroke: var(--ink); stroke-width: 1; }
+/* the dot trails the real pointer: that lag is the smoothing, made visible */
+.wave::before {
+  content: ''; position: absolute; z-index: 2;
+  width: 0.5rem; height: 0.5rem; border-radius: 50%;
+  background: var(--ink);
+  top: var(--pointer-y, -100px); left: var(--pointer-x, -100px);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------- rails */
+.sep {
+  border-top: var(--edge) solid var(--ink);
+  border-bottom: var(--edge) solid var(--ink);
+  height: 2.1rem; overflow: hidden;
+  display: flex; align-items: center; gap: 0.85rem;
+  padding: 0 1rem;
+  font-family: var(--font-mono); font-size: 0.66rem; line-height: 1;
+  -webkit-font-smoothing: antialiased;
+}
+.sep__mark { color: var(--ink); font-size: 0.5rem; line-height: 1; flex: none; }
+
+/* a run of digits kept together, so the eye reads groups instead of noise */
+.sep__code { display: flex; align-items: center; gap: 0.16rem; flex: none; }
+.sep__digit {
+  position: relative; display: block; overflow: hidden;
+  width: 0.46rem; height: 1em; color: transparent; flex: none;
+}
+.sep__digit::before {
+  content: '01'; position: absolute; top: 0; left: 0;
+  width: 100%; height: 2em; word-break: break-all;
+  color: var(--ink); line-height: 1;
+  transition: translate 0.12s steps(1);
+}
+.sep__digit.is-one::before { translate: 0 -1em; }
+
+/* the filler between groups stretches, so the rail spaces itself at any width */
+.sep__fill {
+  flex: 1 1 auto; height: 1em; min-width: 2rem;
+  position: relative; overflow: hidden; color: transparent;
+}
+.sep__fill::before {
+  content: '////////////////////////////////////////////////////////////////////////////////';
+  position: absolute; top: 0; left: 0; white-space: nowrap;
+  color: var(--ink); letter-spacing: 0.04em;
+}
+
+/* --------------------------------------------------- display line + flips */
+.hero__title {
+  font-family: var(--font-display);
+  /* a starting guess only: the line is measured and re-sized in script so it
+     spans the viewport whatever it says. This value is what shows for the one
+     frame before that runs, so keep it close. */
+  font-size: min(10.6vw, 14rem);
+  line-height: 0.8;
+  font-weight: 400;
+  text-align: center;
+  padding: 0.05em 0.5rem;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.word { display: inline-block; white-space: nowrap; }
+
+/* Every character owns a box that clips it, and the copies wait just outside.
+   The box is deliberately taller than the ink so the copies above and below
+   clear it completely: at tighter leading their edges bleed into view.
+   overflow does the clipping; the hairline clip-path only trims sub-pixel
+   bleed from the two side neighbours. */
+.char {
+  position: relative; display: inline-block;
+  overflow: hidden;
+  /* The line box is taller than the glyph: measured against this face there is
+     0.158em of dead space above the cap and 0.177em below the baseline. Left
+     open, a letter sliding vertically would surface in that margin and read as
+     ink floating above the line. Clipping to the ink means it appears exactly
+     at the cap line, so it emerges from an edge that lines up with the type.
+     The side inset is only there to trim sub-pixel bleed from the neighbours. */
+  clip-path: inset(0.15em 0.015em 0.17em);
+  color: transparent;
+  vertical-align: top;
+}
+.char__reveal { display: block; }
+.char__inner {
+  position: relative; display: block; color: transparent;
+  line-height: 1.2;
+  transform: translate3d(0, 0, 0);   /* rest: the middle copy of both sets */
+  will-change: transform;
+}
+
+/* the symbol between the words is set once and never swaps */
+.char--fixed {
+  clip-path: none; overflow: visible;
+}
+.char--fixed .char__inner {
+  transform: none;
+  color: var(--ink);
+}
+.char--fixed .char__inner::before,
+.char--fixed .char__inner::after { content: none; }
+
+/* the four-point star that separates the two words */
+.char--star { width: 1.05em; }
+.char--star .char__inner { height: 1.2em; }
+.char--star svg {
+  position: absolute; top: 50%; left: 50%;
+  width: 0.62em; height: 0.62em;
+  transform: translate(-50%, -50%);
+  fill: var(--ink);
+}
+
+/* while the line is climbing in, the waiting copies are switched off, so a
+   letter parked below its box reads as absent instead of showing the copy that
+   normally sits there. The box itself keeps clipping throughout. */
+.hero__title.is-revealing .char__inner { color: var(--ink); }
+.hero__title.is-revealing .char__inner::before,
+.hero__title.is-revealing .char__inner::after { content: none; }
+/* a row of three, centred on the box: sliding sideways brings the neighbour in.
+   Both sets are centred so their middle copies overlap exactly at rest, which
+   is what lets every one of the four directions reveal a real letter */
+.char__inner::before {
+  content: attr(data-letter) attr(data-letter) attr(data-letter);
+  position: absolute; top: 50%; left: 50%;
+  transform: translate3d(-50%, -50%, 0);
+  color: var(--ink); white-space: pre;
+}
+/* a column of three: the copies must be free to wrap, so this deliberately
+   overrides the title's nowrap — without it the column collapses to one line
+   and the slide reveals empty space instead of a letter */
+.char__inner::after {
+  content: attr(data-letter) attr(data-letter) attr(data-letter);
+  position: absolute; top: 50%; left: 0; width: 100%;
+  transform: translate3d(0, -50%, 0);
+  color: var(--ink);
+  white-space: normal; word-break: break-all;
+}
+
+/* every flip departs from the resting -100% and moves on ONE axis only:
+   carrying that offset through is what keeps the travel straight rather than
+   diagonal */
+.char.to-top .char__inner { animation: slide-top 1s cubic-bezier(0.86, 0, 0.07, 1) forwards; }
+.char.to-bottom .char__inner { animation: slide-bottom 1s cubic-bezier(0.86, 0, 0.07, 1) forwards; }
+.char.to-left .char__inner { animation: slide-left 1s cubic-bezier(0.86, 0, 0.07, 1) forwards; }
+.char.to-right .char__inner { animation: slide-right 1s cubic-bezier(0.86, 0, 0.07, 1) forwards; }
+
+@keyframes slide-top {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(0, -100%, 0); }
+}
+@keyframes slide-bottom {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(0, 100%, 0); }
+}
+@keyframes slide-left {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-100%, 0, 0); }
+}
+@keyframes slide-right {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(100%, 0, 0); }
+}
+
+@media (max-width: 1100px) {
+  .head {
+    grid-template-columns: var(--head-h) 1fr 3rem;
+    height: 4.5rem;
+  }
+  .head__cell--nav, .head__cell--social, .head__cell--status { display: none; }
+  /* the cell is square again at this width, so the wordmark would be clipped */
+  .head__cell--logo { justify-content: center; padding: 0; }
+  .logo__name { display: none; }
+  .hero__title { font-size: 13vw; white-space: normal; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .term::after { animation: none; }
+  .char.to-top .char__inner, .char.to-bottom .char__inner,
+  .char.to-left .char__inner, .char.to-right .char__inner { animation: none; }
+  .head { opacity: 1; }
+}
