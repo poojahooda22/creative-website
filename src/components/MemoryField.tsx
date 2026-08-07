@@ -89,8 +89,11 @@ export function MemoryField() {
                     <img
                       src={`/episodes/${episode.image}`}
                       alt=""
-                      width={384}
-                      height={512}
+                      /* the file's real pixel dimensions: they reserve the
+                         right box before decode, and the card takes its height
+                         from them, so a wrong pair here reshapes the frame */
+                      width={episode.w}
+                      height={episode.h}
                       /* eager, not lazy: these sit far off-screen at rest, and the
                          browser never counts them as "in viewport", so a lazy
                          image can go the whole page without decoding and the

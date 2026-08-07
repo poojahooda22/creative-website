@@ -111,9 +111,22 @@ export function CallToAction() {
               <path d={STAR_PATH} />
             </svg>
           ))}
-          <span className="cta__lines">
-            {BRAND.cta.lines.map((line) => <span key={line}>{line}</span>)}
-          </span>
+          {/* Four copies of every letter. The first is the letter; the other
+              three are thin bands clipped off its leading edge, each running the
+              same bob a little later, which is the motion trail. */}
+          {(['top', 'bottom'] as const).map((half) => (
+            <div className={`cta__line cta__line--${half}`} key={half}>
+              <div className="cta__rope">
+                {BRAND.cta.rope[half].map((cell, i) => (
+                  <span className="cta__char" key={`${cell}-${i}`}>
+                    {[0, 1, 2, 3].map((n) => (
+                      <span className="cta__slice" key={n}>{cell}</span>
+                    ))}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
           <span className="cta__address">{BRAND.cta.address}</span>
         </div>
       </div>

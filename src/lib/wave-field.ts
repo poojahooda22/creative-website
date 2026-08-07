@@ -37,11 +37,22 @@ const SPRING = 0.005;         // pull back toward home
 const DAMPING = 0.925;        // velocity bleed per frame
 const MAX_OFFSET = 100;       // hard cap on displacement, px
 
+/** expo.out — most of the travel happens early, so the line snaps out and settles */
+const easeOut = (t: number): number => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t));
+
 export class WaveField {
   private readonly svg: SVGSVGElement;
   private readonly noise = new Perlin();
   private lines: Point[][] = [];
   private paths: SVGPathElement[] = [];
+  /** length of each line, summed in draw() against the geometry it just wrote */
+  private lengths: number[] = [];
+
+  // reveal state, owned by the engine so it composes with the live geometry
+  private revealStart = 0;
+  private revealDuration = 2400;
+  private revealSpread = 500;
+  private revealing = false;
 
   // pointer: raw, smoothed, and the derived speed / heading
   private px = 0;
@@ -102,6 +113,7 @@ export class WaveField {
     this.svg.replaceChildren();
     this.lines = [];
     this.paths = [];
+    this.lengths = [];
 
     for (let i = 0; i <= columns; i++) {
       const points: Point[] = [];
@@ -120,6 +132,12 @@ export class WaveField {
       this.lines.push(points);
       this.paths.push(path);
     }
+
+    // Paint immediately. A freshly built path carries no geometry at all, and
+    // leaving it that way until something else happens to call draw() is what
+    // left the hero an empty box for five seconds. Doing it here also means a
+    // resize repaints in the same frame it rebuilds.
+    this.drawStatic();
   }
 
   /** Draw every line at its resting position, with no motion applied. */
@@ -129,40 +147,73 @@ export class WaveField {
   }
 
   /**
-   * Play the line-draw intro. Each line is revealed along its own length using
-   * stroke-dashoffset, staggered from both outer edges inward.
+   * Start the line-draw reveal, staggered from both outer edges inward.
+   *
+   * Deliberately returns nothing. The previous version handed back a promise
+   * and the field only began simulating once it resolved, which meant the paths
+   * carried no `d` at all until then — and a path with no geometry reports a
+   * length of zero, so the dash written against it was one pixel wide and
+   * animated nothing. The whole intro was invisible and every line appeared at
+   * once, fully formed, when the ticker finally started.
+   *
+   * The field now runs from the first frame and this only decides when the
+   * curtain is uncovered. The reveal is recomputed per frame against the
+   * geometry as it moves, so a drifting line stays correctly clipped instead of
+   * breathing against a length that was measured once.
    */
-  introDraw(durationMs = 2400): Promise<void> {
+  beginReveal(durationMs = 2400): void {
+    this.revealStart = performance.now();
+    this.revealDuration = durationMs;
+    this.revealing = true;
+    this.host.classList.add('is-revealing');
+  }
+
+  private applyReveal(now: number): void {
+    if (!this.revealing) return;
     const total = this.paths.length;
-    return new Promise((resolve) => {
-      this.paths.forEach((path, i) => {
-        const length = path.getTotalLength() || 1;
-        // distance from the nearest edge, normalised: outer lines start first
-        const edgeDistance = Math.min(i, total - 1 - i) / (total / 2);
-        path.style.strokeDasharray = `${length}`;
-        path.style.strokeDashoffset = `${length}`;
-        path.style.transition =
-          `stroke-dashoffset ${durationMs}ms cubic-bezier(0.16, 1, 0.3, 1) ${edgeDistance * 500}ms`;
-        // next frame, so the transition has a start value to animate from
-        requestAnimationFrame(() => { path.style.strokeDashoffset = '0'; });
-      });
-      window.setTimeout(() => {
-        // release the dash so later frames are not re-clipped
-        this.paths.forEach((p) => {
-          p.style.transition = '';
-          p.style.strokeDasharray = '';
-          p.style.strokeDashoffset = '';
-        });
-        resolve();
-      }, durationMs + 600);
-    });
+    const half = total / 2 || 1;
+    const elapsed = now - this.revealStart;
+    let allDone = true;
+
+    for (let i = 0; i < total; i++) {
+      const path = this.paths[i];
+      // distance from the nearest edge, normalised: outer lines start first
+      const edge = Math.min(i, total - 1 - i) / half;
+      const local = (elapsed - edge * this.revealSpread) / this.revealDuration;
+
+      if (local >= 1) {
+        // finished: strip the dash so later frames are never re-clipped
+        if (path.style.strokeDasharray) {
+          path.style.strokeDasharray = '';
+          path.style.strokeDashoffset = '';
+        }
+        continue;
+      }
+      allDone = false;
+
+      const length = this.lengths[i];
+      if (!length) continue;
+      const shown = length * easeOut(Math.max(0, local));
+      path.style.strokeDasharray = `${length}`;
+      path.style.strokeDashoffset = `${length - shown}`;
+    }
+
+    if (allDone) {
+      this.revealing = false;
+      this.host.classList.remove('is-revealing');
+      this.host.classList.add('is-revealed');
+    }
   }
 
   /** One simulation step. Call from the shared ticker. */
   tick(elapsedMs: number): void {
     this.trackPointer();
     this.movePoints(elapsedMs, false);
+    // order matters: draw() writes the new geometry and its length, and only
+    // then can the reveal clip against it. Reversed, the dash would be measured
+    // against the previous frame's shape.
     this.draw();
+    this.applyReveal(performance.now());
   }
 
   private trackPointer(): void {
@@ -224,6 +275,9 @@ export class WaveField {
     for (let i = 0; i < this.lines.length; i++) {
       const points = this.lines[i];
       let d = '';
+      let length = 0;
+      let prevX = 0;
+      let prevY = 0;
       for (let j = 0; j < points.length; j++) {
         const p = points[j];
         // the last point of every line ignores the cursor offset, pinning the
@@ -232,8 +286,15 @@ export class WaveField {
         const x = p.x + p.waveX + (pinned ? 0 : p.curX);
         const y = p.y + p.waveY + (pinned ? 0 : p.curY);
         d += `${j === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`;
+        // Summed here rather than read back with getTotalLength(). The path is
+        // a polyline, so the sum is exact, and it costs one hypot per point
+        // against 236 synchronous geometry calls into the SVG DOM every frame.
+        if (j > 0) length += Math.hypot(x - prevX, y - prevY);
+        prevX = x;
+        prevY = y;
       }
       this.paths[i].setAttribute('d', d);
+      this.lengths[i] = length;
     }
   }
 

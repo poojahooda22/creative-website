@@ -7,7 +7,23 @@
     <meta name="description" content="Creative developer portfolio. Interactive interfaces, motion, and the web at sixty frames a second." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:wght@400;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+    <!-- Non-blocking. The first paint no longer waits on a third-party
+         stylesheet and the font files it then goes on to discover, which is two
+         serial round-trips before anything can render. display=swap already
+         means the fallback shows, so blocking bought nothing. The headline is
+         re-measured once the display face arrives. -->
+    <link rel="stylesheet" media="print" onload="this.media='all'"
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:wght@400;700&family=Instrument+Serif:ital@0;1&display=swap" />
+    <noscript>
+      <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:wght@400;700&family=Instrument+Serif:ital@0;1&display=swap" />
+    </noscript>
+    <script>
+      // The intro clock starts at parse time, not when the bundle has finished
+      // downloading, parsing and mounting. The preloader catches up to it, so a
+      // slow module graph is not charged to the visitor a second time.
+      window.__introStart = performance.now();
+    </script>
   </head>
   <body>
     <div id="root"></div>

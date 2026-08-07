@@ -72,7 +72,7 @@ export const BRAND = {
   /** the two stacked cells at top right: the claim, then the way in */
   status: {
     claim: 'Memory your assistant can explain, not just recall.',
-    release: 'Open source, self-hosted, your data stays yours',
+    release: 'Open source, self-hosted',
     action: '→ Read the code',
   },
 
@@ -143,13 +143,13 @@ export const BRAND = {
    * name here and it appears with no other change.
    */
   episodes: [
-    { caption: 'MONTY · GOA · JAN 2023', image: 'dog.jpg' },
-    { caption: 'THE VILLAGE ABOVE THE LAKE', image: 'village.jpg' },
-    { caption: 'BLUE LAGOON · MAR 2023', image: 'lagoon.jpg' },
-    { caption: 'RODE THE RIDGE · SEP 2021', image: 'ridge.jpg' },
-    { caption: 'KYOTO · APR 2024', image: 'pagoda.jpg' },
-    { caption: 'THE COVE · JUN 2023', image: 'cove.jpg' },
-  ] as readonly { caption: string; image?: string }[],
+    { caption: 'MONTY · GOA · JAN 2023', image: 'dog.jpg', w: 700, h: 1059 },
+    { caption: 'THE VILLAGE ABOVE THE LAKE', image: 'village.jpg', w: 700, h: 931 },
+    { caption: 'BLUE LAGOON · MAR 2023', image: 'lagoon.jpg', w: 700, h: 1043 },
+    { caption: 'RODE THE RIDGE · SEP 2021', image: 'ridge.jpg', w: 700, h: 467 },
+    { caption: 'KYOTO · APR 2024', image: 'pagoda.jpg', w: 700, h: 1050 },
+    { caption: 'THE COVE · JUN 2023', image: 'cove.jpg', w: 700, h: 964 },
+  ] as readonly { caption: string; image?: string; w: number; h: number }[],
 
   /**
    * Lying flat on the floor, receding to the vanishing point. Four lines, and
@@ -162,7 +162,18 @@ export const BRAND = {
   /** The closing panel. The button asks; the disc behind it answers. */
   cta: {
     button: 'ASK',
-    lines: ['LET’S', 'CONNECT'],
+    /*
+     * Two words stacked in the SAME box and sliced through the middle: the top
+     * half of one and the bottom half of the other. That is why they are stored
+     * as cells rather than strings, and why the two lines have to be close in
+     * width. Punctuation rides along with its neighbour in one cell so the cell
+     * count stays honest; give an apostrophe its own cell and the halves stop
+     * trading cleanly.
+     */
+    rope: {
+      top: ['T', 'O', 'T', 'A', 'L'],
+      bottom: ['R', 'E', 'C', 'A', 'L', 'L'],
+    },
     address: 'GITHUB.COM/POOJAHOODA22/CHAT-MEMORY',
   },
 } as const;

@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* The prose face. Self-hosted rather than fetched, and swap so the text is
+   readable while it arrives instead of invisible. */
+@font-face {
+  font-family: 'PP Editorial New';
+  src: url('/fonts/PPEditorialNew-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ---------------------------------------------------------------- tokens */
 /* Only the GROUND changes between themes. The ink is the same colour in both,
    and that is load-bearing rather than a style choice: the theme wipe is a
@@ -21,9 +31,9 @@
 
   --font-display: 'Anton', 'Arial Narrow', sans-serif;
   --font-mono: 'Space Mono', ui-monospace, monospace;
-  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-serif: 'PP Editorial New', 'Instrument Serif', Georgia;
 
-  --head-h: 6rem;
+  --head-h: 80px;
   --edge: 1px;
 
   /* The runway. The field's bottom padding, the amount it is allowed to bleed
@@ -44,6 +54,9 @@
   --bleed-h: calc(30vh + 200px);
   --overhang: 58vh;
   --foot-h: 80px;
+
+  /* the shaded thickness of a card: darker than the ground, lighter than ink */
+  --wall: #4D4040;
   --bleed: 1.375;
   --tail: 1.5;
   --core-size: 5.6rem;
@@ -260,12 +273,23 @@ body {
 
 .wave {
   position: relative;
+  /* The curtain is the greedy band: it takes every pixel the rails and the
+     display line leave over. Shortening the header hands its height straight
+     to this element rather than to the type below. */
   flex: 1 1 auto; min-height: 12rem;
   overflow: hidden;
   cursor: crosshair;
 }
 .wave__svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.wave__line { fill: none; stroke: var(--ink); stroke-width: 1; }
+.wave__line {
+  fill: none; stroke: var(--ink); stroke-width: 1;
+  /* The lines exist and drift from the first frame, but stay unpainted until the
+     reveal claims them. stroke-opacity rather than opacity: it does not push a
+     couple of hundred paths onto their own compositing layers. */
+  stroke-opacity: 0;
+}
+.wave.is-revealing .wave__line,
+.wave.is-revealed .wave__line { stroke-opacity: 1; }
 /* the dot trails the real pointer: that lag is the smoothing, made visible */
 .wave::before {
   content: ''; position: absolute; z-index: 2;
@@ -320,10 +344,16 @@ body {
      spans the viewport whatever it says. This value is what shows for the one
      frame before that runs, so keep it close. */
   font-size: min(10.6vw, 14rem);
-  line-height: 0.8;
+  /* The line is sized to the viewport's WIDTH, so a short headline on a wide
+     screen would grow tall enough to stand level with the curtain and read as
+     two competing bands. This is its ceiling, declared once — the fitter reads
+     it back off the element and shrinks the type to fit whenever the width fit
+     would overrun it. */
+  max-height: 33svh;
+  line-height: 0.74;
   font-weight: 400;
   text-align: center;
-  padding: 0.05em 0.5rem;
+  padding: 0.015em 0.5rem;
   color: var(--ink);
   white-space: nowrap;
 }
@@ -376,12 +406,18 @@ body {
   fill: var(--ink);
 }
 
-/* while the line is climbing in, the waiting copies are switched off, so a
-   letter parked below its box reads as absent instead of showing the copy that
-   normally sits there. The box itself keeps clipping throughout. */
-.hero__title.is-revealing .char__inner { color: var(--ink); }
-.hero__title.is-revealing .char__inner::before,
-.hero__title.is-revealing .char__inner::after { content: none; }
+/* While the line is climbing in, the column is cut to a single copy, so the
+   cell the letter is parked in is genuinely empty rather than holding the copy
+   that normally waits there.
+
+   It used to switch the pseudo-elements off entirely and paint the text node
+   instead, then swap back on completion. Two different renderings of the same
+   glyph traded places on every character, staggered, which showed as a tick
+   running along the line at the end of the reveal. Reducing the copy count
+   keeps the SAME element painting throughout, and a centred single copy sits
+   exactly where the middle of a centred stack of three sits, so there is
+   nothing to trade. */
+.hero__title.is-revealing .char__inner::after { content: attr(data-letter); }
 /* a row of three, centred on the box: sliding sideways brings the neighbour in.
    Both sets are centred so their middle copies overlap exactly at rest, which
    is what lets every one of the four directions reveal a real letter */
@@ -642,17 +678,25 @@ body {
 @keyframes cell-write { 0%, 70%, 100% { opacity: 0.18; } 20% { opacity: 1; } }
 
 /* ------------------------------------------------------ the flying cards */
+/* A card is six elements and no canvas: a mat, a photo, a caption, a back face
+   and two divs whose four pseudo-elements are the side walls. */
 .field__stage {
   position: absolute; top: -50vh; bottom: -50vh; left: 0; right: 0;
+  /* above the core, so a card emerging at the vanishing point passes in FRONT
+     of the ring rather than climbing out from behind it */
+  z-index: 3;
   perspective: 1000px;
   transform-style: preserve-3d;
   overflow: hidden;
 }
 .flyer {
-  --x: 0px; --y: 0px; --z: -20000px; --rx: 0; --ry: 0; --s: 0; --depth: 0.75rem;
-  /* born at the core, which the engine measures in stage coordinates */
+  --x: 0px; --y: 0px; --z: -12000px; --rx: 0; --ry: 0; --s: 0;
+  /* 3.2% of the card's width. Hold this ratio if the width changes, or a small
+     card becomes a brick and a large one a sheet of paper. */
+  --depth: 1rem;
   position: absolute; top: var(--core-y, 50%); left: var(--core-x, 50%);
-  width: 17rem; margin: -3rem 0 0 -8.5rem;
+  width: 30rem; height: auto;
+  margin: -14rem 0 0 -15rem;
   transform:
     translate3d(var(--x), var(--y), var(--z))
     rotateX(calc(var(--rx) * 1deg))
@@ -663,63 +707,70 @@ body {
 }
 .flyer.is-parked { display: none; }
 
-/* a portrait plate with its caption beneath, the shape of a photo in a frame */
-.flyer { width: 11rem; margin: -7.5rem 0 0 -5.5rem; }
+/* The mat. No border anywhere on this card: the frame IS this padded plate of
+   ground, and the caption's own padding below makes the wider bottom band that
+   reads as the bottom rail. Borders on the face, the plate and four walls put
+   eight hairlines through every corner, and in perspective they smear. */
 .flyer__face {
-  position: relative;
-  display: flex; flex-direction: column; gap: 0.6rem;
-  padding: 0.8rem 0.8rem 0.9rem;
-  background: var(--ground);
-  border: var(--edge) solid var(--ink);
-  backface-visibility: visible;
-  /* load-bearing: the back face below is pushed away with translateZ, and
-     without a 3D context here that push is discarded and the back face lands
-     flat on top of the photo instead of behind it */
-  transform-style: preserve-3d;
+  position: relative; display: block; margin: 0;
+  padding: 1.5rem 1.5rem 0;
+  background: var(--ink);
 }
-/* the back face, so a card turning away is still a solid object */
-.flyer__face::after {
-  content: ''; position: absolute; inset: 0;
-  background: var(--ground);
-  border: var(--edge) solid var(--ink);
-  transform: translateZ(calc(var(--depth) * -1)) rotateY(180deg);
-}
-/* Empty until a real portrait is dropped into public/episodes/ and named in
-   brand.ts. A hatched plate reads as a frame waiting for its photograph; a
-   stock face would read as somebody's memory, which it is not. */
-.flyer__plate {
-  display: block; width: 100%; aspect-ratio: 3 / 4;
-  border: var(--edge) solid var(--ink);
-  background: repeating-linear-gradient(-45deg,
-    transparent 0 5px, var(--hairline) 5px 6px);
-  overflow: hidden;
-}
-.flyer__plate img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* no fixed ratio and no cropping: a landscape photograph stays a landscape
+   card, which is what makes a pile of them read as an archive rather than as
+   the same plate repeated */
+.flyer__plate { display: block; width: 100%; height: auto; }
+.flyer__plate img { display: block; width: 100%; height: auto; }
 .flyer__caption {
-  font-family: var(--font-mono); font-size: 0.5rem; font-weight: 700;
-  letter-spacing: 0.06em; line-height: 1.3; color: var(--ink);
+  display: block; padding: 1.2rem 0;
+  font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700;
+  letter-spacing: 0.06em; line-height: 1; color: var(--ground);
+  text-align: center; text-transform: uppercase;
+}
+
+/* The back face, on the OUTER element so it shares the card's 3D context. The
+   +1px tucks it just inside the rear rims of the walls; flush, the two coplanar
+   surfaces fight for depth and the card strobes as it turns. */
+.flyer::after {
+  content: ''; position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: var(--ink);
+  transform: translateZ(calc(var(--depth) * -1 + 1px)) rotateY(180deg);
+}
+
+/* Four lateral faces, every one folding BACKWARD into negative z toward the
+   back face. rotateY(90deg) about the left edge sends that edge to z = -depth;
+   the opposite sign swings the wall in front of the photograph instead, which
+   is symmetric enough to look plausible in a still and wrong in motion. */
+.flyer__side { position: absolute; inset: 0; transform-style: preserve-3d; }
+.flyer__side::before, .flyer__side::after {
+  content: ''; position: absolute;
+  background: var(--wall);
+  /* each wall is one plane; hide its reverse and the box grows holes the
+     moment the card turns past ninety degrees */
+  backface-visibility: visible;
+}
+.flyer__side--x::before {
+  top: 0; left: 0; width: var(--depth); height: 100%;
+  transform: rotateY(90deg); transform-origin: 0 50%;
+}
+.flyer__side--x::after {
+  top: 0; right: 0; width: var(--depth); height: 100%;
+  transform: rotateY(-90deg); transform-origin: 100% 50%;
+}
+.flyer__side--y::before {
+  top: 0; left: 0; width: 100%; height: var(--depth);
+  transform: rotateX(-90deg); transform-origin: 50% 0;
+}
+.flyer__side--y::after {
+  bottom: 0; left: 0; width: 100%; height: var(--depth);
+  transform: rotateX(90deg); transform-origin: 50% 100%;
 }
 
 /* the same star as the hero and the closing panel, tumbling with the frames */
-.flyer--star { width: 5rem; margin: -2.5rem 0 0 -2.5rem; }
+.flyer--star { width: 9rem; height: 9rem; margin: -4.5rem 0 0 -4.5rem; }
+.flyer--star::after { background: none; }
 .flyer__star { display: block; width: 100%; height: auto; fill: var(--ink); }
-
-/* four lateral faces give the card real thickness as it tumbles past */
-.flyer__side { position: absolute; inset: 0; transform-style: preserve-3d; }
-.flyer__side::before, .flyer__side::after {
-  content: ''; position: absolute; background: var(--ground);
-  border: var(--edge) solid var(--ink);
-}
-.flyer__side--x::before, .flyer__side--x::after {
-  top: 0; bottom: 0; width: var(--depth);
-}
-.flyer__side--x::before { left: 0; transform-origin: left center; transform: rotateY(-90deg); }
-.flyer__side--x::after { right: 0; transform-origin: right center; transform: rotateY(90deg); }
-.flyer__side--y::before, .flyer__side--y::after {
-  left: 0; right: 0; height: var(--depth);
-}
-.flyer__side--y::before { top: 0; transform-origin: center top; transform: rotateX(90deg); }
-.flyer__side--y::after { bottom: 0; transform-origin: center bottom; transform: rotateX(-90deg); }
 
 /* ---------------------------------------------------------- the floor type */
 /* Rendered TWICE. The near copy is sheared into the floor and clipped to end at
@@ -843,8 +894,9 @@ body {
    and only closed when it left the section entirely, which reads as stuck.
    A box that hugs the disc gives a real edge to cross in both directions. */
 .cta__hover {
+  --disc: min(72vh, 54rem, 88vw);
   position: relative;
-  width: min(66vh, 50rem, 90vw); aspect-ratio: 1;
+  width: min(80vh, 60rem, 94vw); aspect-ratio: 1;
   display: grid; place-items: center;
 }
 /* button, ring and disc share one grid cell, so all three sit centred and stacked */
@@ -852,7 +904,7 @@ body {
 
 .cta__ring {
   z-index: 1;
-  width: min(58vh, 44rem, 84vw); aspect-ratio: 1;
+  width: var(--disc); aspect-ratio: 1;
   border-radius: 50%;
   background: var(--ground);
   border: var(--edge) solid var(--ink);
@@ -862,7 +914,7 @@ body {
   pointer-events: none;
 }
 .cta__hover.is-open .cta__ring {
-  transform: scale(1.12);
+  transform: scale(1.055);
   opacity: 1;
   transition: transform 1s cubic-bezier(1, 0, 0, 1) 0.2s, opacity 0.4s ease 0.2s;
 }
@@ -895,7 +947,7 @@ body {
    stays a true circle at every size and the type inside never stretches. */
 .cta__disc {
   position: relative; z-index: 2;
-  width: min(58vh, 44rem, 84vw); aspect-ratio: 1;
+  width: var(--disc); aspect-ratio: 1;
   border-radius: 50%;
   background: var(--ink);
   display: grid; place-items: center; align-content: center; gap: 1.2rem;
@@ -917,12 +969,93 @@ body {
   transition: transform 1.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .cta__hover.is-open .cta__dots { transform: scale(1); }
-.cta__lines {
-  position: relative;
-  display: flex; flex-direction: column; align-items: center;
+/* ------------------------------------------------------------- the rope text */
+/* Both words occupy the SAME box at the same size, stacked exactly on top of one
+   another, and each is clipped to show only one half. What reads as two lines is
+   one line sliced through the middle with a different word supplying each half.
+   That shared box is why the two words must be close in width. */
+.cta__line {
+  position: absolute; top: 50%; left: 50%; z-index: 2;
+  translate: -50% -50%;
+  scale: 0.5;
   font-family: var(--font-display);
-  font-size: clamp(2.4rem, 8vw, 8rem); line-height: 0.9;
-  letter-spacing: 0.01em; color: var(--ground);
+  font-size: calc(var(--disc) * 0.30);
+  line-height: 1;
+  color: var(--ground);
+  white-space: nowrap;
+  transition: scale 0.6s cubic-bezier(0.55, 0.055, 0.675, 0.19);
+  will-change: scale;
+}
+.cta__hover.is-open .cta__line {
+  scale: 1;
+  transition: scale 1.8s cubic-bezier(0.23, 1, 0.32, 1) 0.6s;
+}
+/* The halves are centred on one axis and the seam runs straight across both, so
+   a width mismatch reads immediately. Five cells against six left them 21% apart
+   in this face, and tracking the shorter word out is what squares them.
+   The overlap is a hundredth of an em: butt them at exactly 50% and a hairline
+   of disc colour cuts through every glyph at fractional pixel ratios. */
+.cta__line--top { clip-path: inset(-100% 0 calc(50% + 0.01em) 0); letter-spacing: 0.072em; }
+.cta__line--bottom { clip-path: inset(calc(50% + 0.01em) 0 -100% 0); letter-spacing: 0.014em; }
+
+.cta__rope {
+  display: flex; flex-direction: row;
+  align-items: flex-start; justify-content: center;
+  height: 0.8em;
+}
+.cta__char { position: relative; height: 100%; }
+.cta__char:nth-child(1) { --delay: 0.1s; }
+.cta__char:nth-child(2) { --delay: 0.2s; }
+.cta__char:nth-child(3) { --delay: 0.3s; }
+.cta__char:nth-child(4) { --delay: 0.4s; }
+.cta__char:nth-child(5) { --delay: 0.5s; }
+.cta__char:nth-child(6) { --delay: 0.6s; }
+
+.cta__slice {
+  /* not a time but a fragment of one: it only becomes valid once substituted
+     into the calc below, which is how two offsets are added with one property */
+  --offset: 0s;
+  --move-delay: calc(var(--delay) + var(--offset));
+  position: relative; display: block; height: 100%;
+  animation: rope-bob 2s infinite var(--move-delay);
+  will-change: transform;
+}
+.cta__slice:not(:first-child) {
+  position: absolute; top: 0; left: 0;
+  animation: rope-bob 2s infinite var(--move-delay),
+             rope-blink 2s linear infinite var(--toggle-delay);
+}
+.cta__slice:nth-child(2) { --offset: 0.02s + 0.12s; }
+.cta__slice:nth-child(3) { --offset: 0.02s + 0.08s; }
+.cta__slice:nth-child(4) { --offset: 0.02s + 0.04s; }
+
+/* Thickness and lag are inversely paired: the thinnest band lags most, so the
+   trail tapers away from the letter instead of reading as a solid smear. */
+.cta__line--top .cta__slice { --toggle-delay: calc(var(--delay) + var(--offset) + 0.45s); }
+.cta__line--top .cta__slice:nth-child(2) { clip-path: inset(0 0 calc(100% - 0.03em) 0); }
+.cta__line--top .cta__slice:nth-child(3) { clip-path: inset(0 0 calc(100% - 0.06em) 0); }
+.cta__line--top .cta__slice:nth-child(4) { clip-path: inset(0 0 calc(100% - 0.09em) 0); }
+
+/* a full second later on the bottom half, so the two words shed their trails at
+   opposite moments and read as tearing into each other rather than as two
+   animations that happen to share a box */
+.cta__line--bottom .cta__slice { --toggle-delay: calc(var(--delay) + var(--offset) + 1.45s); }
+.cta__line--bottom .cta__slice:nth-child(2) { clip-path: inset(calc(100% - 0.03em) 0 0 0); }
+.cta__line--bottom .cta__slice:nth-child(3) { clip-path: inset(calc(100% - 0.06em) 0 0 0); }
+.cta__line--bottom .cta__slice:nth-child(4) { clip-path: inset(calc(100% - 0.09em) 0 0 0); }
+
+/* a fast snap up to a dwell at the top, a long sweep down through centre to the
+   bottom, then back. The travel exceeds half the cell, so each letter fully
+   clears its own half of the clip and the words genuinely trade places. */
+@keyframes rope-bob {
+  0%   { transform: translateZ(0);           animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1); }
+  25%  { transform: translate3d(0, -52%, 0); animation-timing-function: cubic-bezier(0.645, 0.045, 0.355, 1); }
+  75%  { transform: translate3d(0,  52%, 0); animation-timing-function: cubic-bezier(0.55, 0.055, 0.675, 0.19); }
+  100% { transform: translateZ(0); }
+}
+@keyframes rope-blink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
 }
 
 /* four stars drifting on their own clocks, so they never blink in unison */
@@ -932,10 +1065,10 @@ body {
   opacity: 0;
 }
 .cta__hover.is-open .cta__star { animation: star-twinkle 6s ease-in-out infinite; }
-.cta__star--0 { top: 16%; left: 24%; animation-delay: 0s; }
-.cta__star--1 { top: 26%; right: 20%; animation-delay: 1.4s; }
-.cta__star--2 { bottom: 24%; left: 19%; animation-delay: 2.6s; }
-.cta__star--3 { bottom: 17%; right: 26%; animation-delay: 3.8s; }
+.cta__star--0 { top: 12%; left: 25%; width: 1.5rem; animation-duration: 8s; animation-delay: 0s; }
+.cta__star--1 { top: 30%; left: 82%; width: 1rem; animation-duration: 9s; animation-delay: 1.4s; }
+.cta__star--2 { top: 64%; left: 12%; width: 1rem; animation-duration: 7s; animation-delay: 2.6s; }
+.cta__star--3 { top: 82%; left: 72%; width: 1.5rem; animation-duration: 10s; animation-delay: 3.8s; }
 @keyframes star-twinkle {
   0%, 100% { opacity: 0.2; transform: translateY(0) scale(0.55) rotate(0deg); }
   50%      { opacity: 1;   transform: translateY(-15%) scale(1) rotate(45deg); }
@@ -964,7 +1097,7 @@ body {
 .cta__mark i:nth-child(3) { height: 0.7rem; }
 
 @media (max-width: 900px) {
-  .cta__hover { width: 88vw; }
+  .cta__hover { --disc: 74vw; width: 88vw; }
   .cta__button { width: 4.5rem; height: 4.5rem; }
   .cta__label { font-size: 1.15rem; }
   .cta__address { font-size: 0.5rem; letter-spacing: 0.1em; }

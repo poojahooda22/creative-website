@@ -18,13 +18,13 @@ const LAUNCH_JITTER = 500;
 // close enough that they are readable for most of the trip: starting them at
 // twenty thousand made them specks a couple of pixels wide for six of their
 // seven seconds, which is a lot of machinery for almost no picture.
-const START_Z = -6000;
-// Retire the card well short of the camera plane. The stage's perspective is
-// 1000px, and scale runs as P/(P - z), so a card allowed near z = 1000 divides
-// by almost nothing: one measured 678,911px wide before this was capped. At 600
-// the biggest a card ever gets is two and a half times its size, which is the
-// rush past the lens without the divide-by-zero behind it.
-const END_Z = 600;
+const START_Z = -12000;
+// The stage's perspective is 1000px and scale runs as P/(P - z), so a card at
+// z = 1000 divides by nothing: one measured 678,911px wide before this existed.
+// The guard is a clamp rather than a wide berth, which buys the pass-the-lens
+// moment back: at 850 a card reaches about six times its size on the last frame
+// before it is retired, instead of stopping politely at two and a half.
+const END_Z = 850;
 const REFERENCE_FRAME = 1000 / 60;
 
 interface Flyer {
@@ -157,7 +157,9 @@ export class MemoryField {
     flyer.x = 0;
     flyer.y = 0;
     flyer.s = 0;
-    flyer.vz = rand(18, 26);
+    // roughly double: the trip lasts about the same, but far less of it is
+    // spent as an unreadable speck in the far distance
+    flyer.vz = rand(40, 50);
     // alternating signs so the field spreads instead of drifting one way
     flyer.vx = Math.random() * this.width * 0.0025 * (index % 2 ? -1 : 1);
     flyer.vy = Math.random() * this.height * 0.0025 * (index % 3 ? -1 : 1);
@@ -195,7 +197,8 @@ export class MemoryField {
       if (f.z > END_Z) { this.park(f); continue; }
 
       f.s = Math.min(f.s + 0.005 * step, 1);
-      f.z += f.vz * step;
+      // clamped, so a dropped frame cannot jump a card past the camera plane
+      f.z = Math.min(f.z + f.vz * step, END_Z + 1);
       f.x += f.vx * step;
       f.y += f.vy * step;
       f.rx += f.vrx * step;

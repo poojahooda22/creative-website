@@ -26,6 +26,14 @@ const STAR_CHAR = '✦';
  *
  * Clearing the inline size first matters: without it every resize would scale
  * the already-scaled value and the line would walk away from the edges.
+ *
+ * Then a height cap. Fitting to width alone means the size is decided by how
+ * many characters the headline happens to have: a short one on a wide screen
+ * grows tall enough to stand level with the curtain above it, which reads as
+ * two competing bands instead of one backdrop and one line. The ceiling is the
+ * element's own max-height, declared once in the stylesheet and read back here
+ * rather than repeated as a number in both places. Capping the type instead of
+ * clipping the box is what hands the leftover height to the curtain.
  */
 function fitLine(root: HTMLElement): void {
   root.style.fontSize = '';
@@ -42,6 +50,12 @@ function fitLine(root: HTMLElement): void {
     const ink = range.getBoundingClientRect().width;
     if (ink <= 0 || available <= 0) return;
     root.style.fontSize = `${parseFloat(styles.fontSize) * (available / ink)}px`;
+  }
+
+  const allowance = parseFloat(getComputedStyle(root).maxHeight);
+  const height = root.getBoundingClientRect().height;
+  if (Number.isFinite(allowance) && allowance > 0 && height > allowance) {
+    root.style.fontSize = `${parseFloat(getComputedStyle(root).fontSize) * (allowance / height)}px`;
   }
 }
 
@@ -112,9 +126,15 @@ export function HeroTitle({ text }: { text: string }) {
       refitFrame = requestAnimationFrame(() => fitLine(root));
     };
     fitLine(root);
-    // the first measurement can land on the fallback face; once the display
-    // font is in, the glyph widths change and the fit has to be redone
+    // The first measurement can land on the fallback face; once the display font
+    // is in, the glyph widths change and the fit has to be redone.
+    //
+    // Both, not just ready: fonts.ready settles once the currently pending set
+    // is done, and the stylesheet that requests Anton is loaded non-blocking, so
+    // it can be asked for slightly after ready has already resolved. Naming the
+    // face we actually measure against closes that race.
     document.fonts.ready.then(refit);
+    document.fonts.load('1em Anton').then(refit).catch(() => {});
     window.addEventListener('resize', refit);
 
     const stopFitting = () => {

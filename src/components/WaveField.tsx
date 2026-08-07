@@ -10,24 +10,24 @@ export function WaveField() {
     const host = hostRef.current;
     if (!host) return;
 
+    // the engine paints its resting grid as it builds, so the hero is never an
+    // empty box waiting on a promise
     const engine = new Engine(host);
-    let unsubscribe: (() => void) | undefined;
 
     if (prefersReducedMotion()) {
-      engine.drawStatic();
+      host.classList.add('is-revealed');
       return () => engine.dispose();
     }
 
-    const offIntro = onIntro(() => {
-      // lines draw themselves on first, then the field comes alive
-      void engine.introDraw().then(() => {
-        unsubscribe = subscribe((elapsed) => engine.tick(elapsed));
-      });
-    });
+    // The field breathes from the first frame. The intro decides only when the
+    // curtain is uncovered — it does not gate the field's existence or its
+    // motion, which is what the previous await chain did.
+    const unsubscribe = subscribe((elapsed) => engine.tick(elapsed));
+    const offIntro = onIntro(() => engine.beginReveal());
 
     return () => {
       offIntro();
-      unsubscribe?.();
+      unsubscribe();
       engine.dispose();
     };
   }, []);
