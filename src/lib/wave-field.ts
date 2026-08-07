@@ -36,6 +36,20 @@ const IMPULSE = 0.00065;      // push strength per frame
 const SPRING = 0.005;         // pull back toward home
 const DAMPING = 0.925;        // velocity bleed per frame
 const MAX_OFFSET = 100;       // hard cap on displacement, px
+const POINTER_LERP = 0.1;     // how fast the smoothed pointer chases the real one
+const REFERENCE_FRAME = 1000 / 60;
+
+/*
+ * Every constant above is tuned per 60Hz frame, so each one is scaled by how
+ * long the frame actually took. Without it the field combs and settles at twice
+ * the rate on a 120Hz display for the identical physical gesture, and at half
+ * on a struggling one.
+ *
+ * Decay is raised to the power of the step rather than multiplied by it,
+ * because bleeding 7.5% of the energy twice is not the same as bleeding 15%
+ * once. At exactly 60Hz the step is 1 and every expression below collapses to
+ * what it was before, so the look on a 60Hz screen is unchanged.
+ */
 
 /** expo.out — most of the travel happens early, so the line snaps out and settles */
 const easeOut = (t: number): number => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t));
@@ -142,7 +156,7 @@ export class WaveField {
 
   /** Draw every line at its resting position, with no motion applied. */
   drawStatic(): void {
-    this.movePoints(0, true);
+    this.movePoints(0, 1, true);
     this.draw();
   }
 
@@ -206,9 +220,12 @@ export class WaveField {
   }
 
   /** One simulation step. Call from the shared ticker. */
-  tick(elapsedMs: number): void {
-    this.trackPointer();
-    this.movePoints(elapsedMs, false);
+  tick(elapsedMs: number, deltaMs: number): void {
+    // floored at one millisecond: two frames can land on the same timestamp,
+    // and a zero step would divide the pointer speed by nothing
+    const step = Math.max(Math.min(deltaMs, 50), 1) / REFERENCE_FRAME;
+    this.trackPointer(step);
+    this.movePoints(elapsedMs, step, false);
     // order matters: draw() writes the new geometry and its length, and only
     // then can the reveal clip against it. Reversed, the dash would be measured
     // against the previous frame's shape.
@@ -216,15 +233,19 @@ export class WaveField {
     this.applyReveal(performance.now());
   }
 
-  private trackPointer(): void {
+  private trackPointer(step: number): void {
     // the visible dot lags the real pointer: that lag IS the smoothing
-    this.smoothX += (this.px - this.smoothX) * 0.1;
-    this.smoothY += (this.py - this.smoothY) * 0.1;
+    const follow = 1 - (1 - POINTER_LERP) ** step;
+    this.smoothX += (this.px - this.smoothX) * follow;
+    this.smoothY += (this.py - this.smoothY) * follow;
 
     const dx = this.px - this.lastX;
     const dy = this.py - this.lastY;
     const distance = Math.hypot(dx, dy);
-    this.speed += (distance - this.speed) * 0.1;
+    // Distance covered per 60Hz-equivalent frame. Raw per-frame distance halves
+    // on a 120Hz display for the same real gesture, which would quietly halve
+    // both the comb radius and its strength.
+    this.speed += (distance / step - this.speed) * follow;
     this.speed = Math.min(MAX_SPEED, this.speed);
     if (distance > 0.01) this.heading = Math.atan2(dy, dx);
     this.lastX = this.px;
@@ -234,10 +255,12 @@ export class WaveField {
     this.host.style.setProperty('--pointer-y', `${this.smoothY}px`);
   }
 
-  private movePoints(elapsedMs: number, staticOnly: boolean): void {
+  private movePoints(elapsedMs: number, step: number, staticOnly: boolean): void {
     const { swingX, swingY } = this.opts;
     // influence grows with pointer speed, so a fast sweep combs a wider band
     const radius = Math.max(BASE_RADIUS, this.speed);
+    // hoisted: one pow for the whole grid rather than one per point
+    const decay = DAMPING ** step;
 
     for (const points of this.lines) {
       for (const p of points) {
@@ -257,16 +280,16 @@ export class WaveField {
           const force = Math.cos(distance * 0.001) * falloff;
           // pushed along the pointer's direction of travel, not radially out:
           // that is what makes it read as combing rather than repelling
-          p.velX += Math.cos(this.heading) * force * radius * this.speed * IMPULSE;
-          p.velY += Math.sin(this.heading) * force * radius * this.speed * IMPULSE;
+          p.velX += Math.cos(this.heading) * force * radius * this.speed * IMPULSE * step;
+          p.velY += Math.sin(this.heading) * force * radius * this.speed * IMPULSE * step;
         }
 
-        p.velX += (0 - p.curX) * SPRING;
-        p.velY += (0 - p.curY) * SPRING;
-        p.velX *= DAMPING;
-        p.velY *= DAMPING;
-        p.curX = Math.max(-MAX_OFFSET, Math.min(MAX_OFFSET, p.curX + p.velX * 2));
-        p.curY = Math.max(-MAX_OFFSET, Math.min(MAX_OFFSET, p.curY + p.velY * 2));
+        p.velX += (0 - p.curX) * SPRING * step;
+        p.velY += (0 - p.curY) * SPRING * step;
+        p.velX *= decay;
+        p.velY *= decay;
+        p.curX = Math.max(-MAX_OFFSET, Math.min(MAX_OFFSET, p.curX + p.velX * 2 * step));
+        p.curY = Math.max(-MAX_OFFSET, Math.min(MAX_OFFSET, p.curY + p.velY * 2 * step));
       }
     }
   }

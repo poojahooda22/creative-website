@@ -127,6 +127,14 @@ export class RippleGrid {
       if (this.progress > Math.hypot(this.width, this.height)) this.running = false;
     }
 
+    // The integration below was already scaled by the step but the strike, the
+    // spring and the decay were not, which is the worst of both: it reads as
+    // handled and still settles at twice the rate on a 120Hz display. Decay is
+    // raised to the power of the step, since bleeding a tenth of the energy
+    // twice is not the same as bleeding a fifth once. At 60Hz the step is 1 and
+    // all of this collapses to exactly what it was.
+    const decay = DAMPING ** step;
+
     for (const column of this.columns) {
       for (const p of column) {
         const offset = Math.abs(p.dist - this.progress);
@@ -134,17 +142,17 @@ export class RippleGrid {
           const falloff = 1 - offset / BAND;
           const angle = Math.atan2(p.dy, p.dx);
           const amp = Math.cos(offset * 0.01) * falloff;
-          p.vx += Math.cos(angle) * amp * BAND * 0.5 * this.strength;
-          p.vy += Math.sin(angle) * amp * BAND * 0.5 * this.strength;
+          p.vx += Math.cos(angle) * amp * BAND * 0.5 * this.strength * step;
+          p.vy += Math.sin(angle) * amp * BAND * 0.5 * this.strength * step;
         }
-        p.vx += (0 - p.wx) * SPRING;
-        p.vy += (0 - p.wy) * SPRING;
-        p.vx *= DAMPING;
-        p.vy *= DAMPING;
+        p.vx += (0 - p.wx) * SPRING * step;
+        p.vy += (0 - p.wy) * SPRING * step;
+        p.vx *= decay;
+        p.vy *= decay;
         p.wx += p.vx * 3 * step;
         p.wy += p.vy * 3 * step;
-        p.wx *= DAMPING;
-        p.wy *= DAMPING;
+        p.wx *= decay;
+        p.wy *= decay;
       }
     }
     this.draw();

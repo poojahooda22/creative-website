@@ -90,15 +90,23 @@ export function SiteHead() {
         </span>
       </div>
 
-      <nav className="head__cell head__cell--nav" aria-label="Sections">
-        {BRAND.nav.map((item) => (
-          <span className="head__rise" key={item.label}>
-            <a className="navlink" href={item.href}>
-              <span className="navlink__caret" aria-hidden="true" />
-              {item.label}
-            </a>
-          </span>
-        ))}
+      <nav className="head__cell head__cell--nav" aria-label="Project">
+        {BRAND.nav.map((item) => {
+          // An entry that leaves the site opens in its own tab and drops the
+          // referrer and the opener handle. A '#' entry is left exactly as it
+          // was, because the scroll hook only intercepts those and adding a
+          // target to one would break the glide.
+          const leavesSite = item.href.startsWith('http');
+          return (
+            <span className="head__rise" key={item.label}>
+              <a className="navlink" href={item.href}
+                {...(leavesSite ? { target: '_blank', rel: 'noreferrer noopener' } : {})}>
+                <span className="navlink__caret" aria-hidden="true" />
+                {item.label}
+              </a>
+            </span>
+          );
+        })}
       </nav>
 
       <div className="head__cell head__cell--social">

@@ -13,8 +13,31 @@ function frame(now: number): void {
   const elapsed = now - startTime;
   const delta = Math.min(now - lastTime, 50); // clamp: a backgrounded tab must not jump
   lastTime = now;
-  subscribers.forEach((fn) => fn(elapsed, delta));
+
+  // Booked BEFORE the subscribers run. Scheduling the next frame after them
+  // means anything that throws takes the clock down with it: the loop never
+  // reschedules, and every animation on the page plus the smooth scrolling
+  // stops for good, from one exception in one effect.
   rafId = requestAnimationFrame(frame);
+
+  for (const fn of subscribers) {
+    try {
+      fn(elapsed, delta);
+    } catch (error) {
+      // Reported, not swallowed, and then evicted. A subscriber that throws
+      // once will throw every frame, so leaving it in trades a dead page for
+      // sixty identical errors a second, which buries the first one. Dropping
+      // it costs that one effect and keeps the rest of the page alive.
+      subscribers.delete(fn);
+      console.error('ticker: removed a subscriber after it threw', error);
+    }
+  }
+
+  // everything either unsubscribed or was evicted: stop the clock
+  if (subscribers.size === 0) {
+    cancelAnimationFrame(rafId);
+    rafId = 0;
+  }
 }
 
 export function subscribe(fn: TickFn): () => void {

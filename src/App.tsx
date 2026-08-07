@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { Boundary } from './components/Boundary';
 import { Preloader } from './components/Preloader';
 import { SiteHead } from './components/SiteHead';
 import { WaveField } from './components/WaveField';
@@ -25,19 +26,22 @@ export default function App() {
 
       <SiteHead />
 
+      {/* Each section is fenced on its own. One of them throwing costs that
+          section; unfenced, React tears down the whole tree and the visitor
+          gets a blank document instead of a page with a gap in it. */}
       <main>
         <div className="hero">
-          <WaveField />
+          <Boundary name="wave"><WaveField /></Boundary>
           <Separator />
-          <HeroTitle text={headline} />
+          <Boundary name="headline"><HeroTitle text={headline} /></Boundary>
           <Separator />
         </div>
         {/* the hero's trailing rail doubles as this section's top edge; the one
             below marks where the panel is cut off */}
-        <AboutRoom />
+        <Boundary name="about"><AboutRoom /></Boundary>
         <Separator />
-        <MemoryField />
-        <CallToAction />
+        <Boundary name="memory-field"><MemoryField /></Boundary>
+        <Boundary name="closing"><CallToAction /></Boundary>
       </main>
     </>
   );

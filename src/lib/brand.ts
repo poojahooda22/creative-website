@@ -54,18 +54,31 @@ const GRID: readonly GridCell[] = [
 /** One address for the project, used by the mark, the nav and the socials. */
 const REPO = 'https://github.com/poojahooda22/chat-memory';
 
+/** The running thing. The nav sends people here rather than to a section of
+ *  this page: a visitor who wants to know how it works is better served by the
+ *  product than by prose about the product. */
+const APP = 'https://chat-memory-five.vercel.app/';
+
 export const BRAND = {
   name: 'chat-memory',
 
   /** the mark in the header links straight here; there is nowhere else to go yet */
   repo: REPO,
 
+  /** the deployed product */
+  app: APP,
+
   /** the display line: two words around the star, and nothing else */
   headline: 'EPISODIC ✦ RECALL',
 
+  /*
+   * Every entry leaves the page. An href starting with http is rendered as an
+   * external link by the header, so adding one here needs no other change; an
+   * href starting with # still smooth-scrolls to that id on this page.
+   */
   nav: [
-    { label: 'How it works', href: '#how-it-works' },
-    { label: 'Architecture', href: '#architecture' },
+    { label: 'How it works', href: APP },
+    { label: 'Architecture', href: REPO },
     { label: 'Get started', href: REPO },
   ],
 
@@ -157,7 +170,7 @@ export const BRAND = {
    * above it, so the sentence arrives from the far distance and the count lands
    * at your feet.
    */
-  floor: ['REMEMBER', 'SINCE', 'TURN', '001'],
+  floor: ['REMEMBER', 'SINCE', 'FIRST', 'CHAT', '001'],
 
   /** The closing panel. The button asks; the disc behind it answers. */
   cta: {

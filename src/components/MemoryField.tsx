@@ -62,11 +62,22 @@ export function MemoryField() {
 
   return (
     <section className="field" ref={hostRef}>
+      {/* The ref stays on this wrapper and NOT on the face inside it. The face
+          rotates, and a rotating square's measured box swells to its diagonal
+          and back on every turn; the vanishing point has to be read off
+          something that holds still. */}
       <div className="field__core" ref={coreRef} aria-hidden="true">
-        <span className="field__core-ring" />
-        <span className="field__core-lattice">
-          {Array.from({ length: 9 }, (_, i) => <i key={i} style={{ animationDelay: `${i * 0.18}s` }} />)}
-        </span>
+        <svg className="field__face" viewBox="0 0 100 100">
+          {/* Proportions taken from the reference and expressed against a
+              hundred-unit box, so the face holds its shape at 90px on the
+              desktop and 64px on the narrow layout without a second set of
+              numbers. Eyes sit at 39.5% of the height, one fifth of the box
+              either side of centre. */}
+          <ellipse className="field__face-eye" cx="32.8" cy="39.5" rx="5.4" ry="9.76" />
+          <ellipse className="field__face-eye" cx="67.2" cy="39.5" rx="5.4" ry="9.76" />
+          {/* radius equals half the chord, which is exactly 180 degrees */}
+          <path className="field__face-mouth" d="M20.95 50.1A29.05 29.05 0 0 0 79.05 50.1" />
+        </svg>
       </div>
 
       <div className="field__stage" ref={stageRef} aria-hidden="true">
