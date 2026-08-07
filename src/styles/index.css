@@ -31,6 +31,19 @@
      all expressions of this one number. Hand-type any of them separately and
      the giant type falls through into the panel. */
   --pad: 40rem;
+  /* How far the type is allowed past the field's own edge, and therefore how
+     much empty ground the panel below reserves before its footer begins. The
+     panel is this plus one screen. */
+  /* Two different things, deliberately not one number.
+     --bleed-h is LAYOUT: the empty ground the closing panel reserves at its top,
+       which is what keeps the panel exactly 30 + 100 screens tall.
+     --overhang is PAINT: how far the type may keep drawing past the field's own
+       edge. It has to clear the tallest line in full or the glyphs get sliced,
+       and since the type paints above the panel it can safely exceed the
+       reservation. Tying these together is what was cutting 001 in half. */
+  --bleed-h: calc(30vh + 200px);
+  --overhang: 58vh;
+  --foot-h: 80px;
   --bleed: 1.375;
   --tail: 1.5;
   --core-size: 5.6rem;
@@ -580,7 +593,7 @@ body {
      (cards rain in from a screen higher up), the sides are cut flush, and the
      bottom is allowed to bleed by exactly the amount the closing panel reserves
      for it. Free overflow let the type march the whole way down the panel. */
-  clip-path: inset(-100vh 0 calc(var(--pad) * var(--bleed) * -1));
+  clip-path: inset(-100vh 0 calc(var(--overhang) * -1));
   --scroll-progress: 0;
   --distortion: 180;
 }
@@ -717,7 +730,10 @@ body {
    either stop dead at the boundary or overrun it. */
 .field__catcher {
   --amplitude: 50%;
-  --offset: 15%;
+  /* A share of the block's OWN height, and the block is bottom-anchored, so
+     tightening the leading shortens it and pushes its top down. Any change to
+     line-height has to be paid for here or the type drifts away from the core. */
+  --offset: 30%;
   position: absolute; bottom: 0; left: 0; z-index: 2;
   width: 100%;
   height: calc(var(--pad) * 1.05 + var(--core-size) / 2);
@@ -725,8 +741,10 @@ body {
      depth and the camera has to retreat in proportion to the type size */
   perspective: calc(var(--distortion) * 0.85em);
   font-family: var(--font-display);
-  font-size: calc(var(--pad) * 1.2);
-  line-height: 0.82;
+  font-size: calc(var(--pad) * 0.92);
+  /* the shear compresses whatever leading it is given, so tight leading that
+     reads fine flat collapses the far lines into each other here */
+  line-height: 0.95;
   text-align: center; text-transform: uppercase; white-space: nowrap;
   color: var(--ink);
   user-select: none; pointer-events: none;
@@ -750,7 +768,7 @@ body {
    plane overspills either side rather than having its corners sliced off */
 .field__catcher-wrap--far {
   position: absolute; top: calc(100% - 1px); left: 0; width: 100%;
-  height: calc(100% + 100vh);
+  height: var(--overhang);
   overflow: hidden;
 }
 .field__catcher-plane--flat {
@@ -783,28 +801,34 @@ body {
 /* -------------------------------------------------------- the closing panel */
 .cta {
   position: relative; z-index: 3;
-  /* the reservation: the field is allowed to bleed this far down, so this much
-     empty ground is kept clear at the top for it to land on */
-  padding-top: calc(var(--pad) * var(--bleed));
+  /* the reserved ground plus one screen of footer */
+  height: calc(130vh + 200px);
+  padding-top: var(--bleed-h);
   display: flex; flex-direction: column;
 }
 /* the lattice is confined here, so it stops at the rule above the closing band
    rather than running on underneath the mark */
 .cta__stage {
-  position: relative; flex: none; height: calc(100vh - 8rem - 2px);
+  /* One screen, measured from where the type stops: the reservation above ends
+     at the last line, this fills the viewport below it, and the closing band
+     takes the final 80px. Stage plus band is exactly 100vh. */
+  position: relative; flex: none; height: calc(100vh - var(--foot-h));
   display: grid; place-items: center;
   overflow: hidden;
 }
 .cta__foot {
-  flex: none; width: 100%; height: 20vh;
+  /* positioned so it paints over the lattice: the grid now spans the whole
+     panel, and without this the lines run straight through the plain band */
+  position: relative; z-index: 2;
+  flex: none; width: 100%; height: var(--foot-h);
   border-top: var(--edge) solid var(--ink);
   background: var(--ground);
-  padding: 3rem 0;
   display: grid; place-items: center;
 }
 .cta__grid {
-  position: absolute; inset: 0;
-  width: 100%; height: 100%;
+  position: absolute; top: -1px; left: -1px;
+  width: calc(100% + 2px);
+  height: calc(100% - var(--foot-h) + 2px);
   pointer-events: none;
 }
 .cta__grid path {
@@ -823,8 +847,25 @@ body {
   width: min(66vh, 50rem, 90vw); aspect-ratio: 1;
   display: grid; place-items: center;
 }
-/* button and disc share one grid cell, so both sit centred and stacked */
-.cta__button, .cta__disc { grid-area: 1 / 1; }
+/* button, ring and disc share one grid cell, so all three sit centred and stacked */
+.cta__button, .cta__disc, .cta__ring { grid-area: 1 / 1; }
+
+.cta__ring {
+  z-index: 1;
+  width: min(58vh, 44rem, 84vw); aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--ground);
+  border: var(--edge) solid var(--ink);
+  transform: scale(0.2);
+  opacity: 0;
+  transition: transform 0.9s cubic-bezier(1, 0, 0, 1), opacity 0.5s ease;
+  pointer-events: none;
+}
+.cta__hover.is-open .cta__ring {
+  transform: scale(1.12);
+  opacity: 1;
+  transition: transform 1s cubic-bezier(1, 0, 0, 1) 0.2s, opacity 0.4s ease 0.2s;
+}
 
 .cta__button {
   position: relative; z-index: 3;
@@ -899,11 +940,16 @@ body {
   0%, 100% { opacity: 0.2; transform: translateY(0) scale(0.55) rotate(0deg); }
   50%      { opacity: 1;   transform: translateY(-15%) scale(1) rotate(45deg); }
 }
+/* Pinned near the bottom of the disc rather than stacked under the words, and
+   taken out of flow so the words stay centred in the circle on their own.
+   The inset is set by the curve, not by taste: this far up from the bottom the
+   circle is only about 370px across, and the address is roughly 330px wide, so
+   any closer to the edge and it would overhang the black. */
 .cta__address {
-  position: relative;
+  position: absolute; left: 0; right: 0; bottom: 4.5rem;
+  text-align: center;
   font-family: var(--font-mono); font-size: 0.66rem; font-weight: 700;
   letter-spacing: 0.16em; color: var(--ground);
-  margin-top: 1.6rem;
   opacity: 0; transform: translate3d(0, 0.6rem, 0);
   transition: opacity 0.5s ease 0.7s, transform 0.5s ease 0.7s;
 }
@@ -911,10 +957,11 @@ body {
 
 /* the same mark as the header, closing the page where it opened */
 .cta__mark { display: flex; gap: 0.62rem; align-items: flex-end; }
-.cta__mark i { display: block; width: 0.95rem; background: var(--ink); }
-.cta__mark i:nth-child(1) { height: 3.4rem; }
-.cta__mark i:nth-child(2) { height: 4.8rem; }
-.cta__mark i:nth-child(3) { height: 2.5rem; }
+.cta__mark { gap: 0.2rem; }
+.cta__mark i { display: block; width: 0.3rem; background: var(--ink); }
+.cta__mark i:nth-child(1) { height: 0.95rem; }
+.cta__mark i:nth-child(2) { height: 1.35rem; }
+.cta__mark i:nth-child(3) { height: 0.7rem; }
 
 @media (max-width: 900px) {
   .cta__hover { width: 88vw; }

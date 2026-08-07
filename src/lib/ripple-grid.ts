@@ -44,7 +44,7 @@ export class RippleGrid {
   /** 0 while idle, tweened to 1 on hover: how far the lens bulge is applied. */
   open = 0;
 
-  constructor(private readonly host: HTMLElement, private readonly source: HTMLElement) {
+  constructor(host: HTMLElement, private readonly source: HTMLElement) {
     this.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     this.svg.setAttribute('class', 'cta__grid');
     this.svg.setAttribute('aria-hidden', 'true');
@@ -55,7 +55,11 @@ export class RippleGrid {
   }
 
   resize(): void {
-    const rect = this.host.getBoundingClientRect();
+    // Measure the DRAWING SURFACE, not the section. The svg is deliberately
+    // shorter than the panel so the lattice stops at the closing band, and
+    // taking the section's height here would build a coordinate space taller
+    // than the surface it is painted on: the whole grid renders squashed.
+    const rect = this.svg.getBoundingClientRect();
     this.width = rect.width;
     this.height = rect.height;
     this.svg.setAttribute('viewBox', `0 0 ${this.width} ${this.height}`);
@@ -65,9 +69,16 @@ export class RippleGrid {
     this.srcY = srcRect.top - rect.top + srcRect.height / 2;
 
     const cols = window.innerWidth > 767 ? 12 : 8;
-    const rows = 8;
     const gapX = this.width / cols;
-    const gapY = this.height / rows;
+    // Rows are sized off a screen height, not off this box. The box now runs the
+    // whole panel including the ground reserved for the type above, and dividing
+    // THAT by a fixed row count would stretch every cell into a tall rectangle.
+    const gapY = window.innerHeight / 8;
+    const rows = Math.max(2, Math.floor(this.height / gapY));
+    // the leftover goes to every row but the first, so the lattice bottom-aligns
+    // and the odd short row hides at the top
+    const bleed = this.height - gapY * rows;
+
     const diagonal = Math.hypot(this.width, this.height);
     const reach = Math.min(this.width, this.height) / 2;
 
@@ -76,7 +87,7 @@ export class RippleGrid {
       const column: Vertex[] = [];
       for (let r = 0; r <= rows; r += 1) {
         const x = gapX * c;
-        const y = gapY * r;
+        const y = gapY * r + (r === 0 ? 0 : bleed);
         const hx = x - this.srcX;
         const hy = y - this.srcY;
         const dist = Math.max(Math.hypot(hx, hy), 1);
@@ -89,8 +100,10 @@ export class RippleGrid {
         const ease = (t: number) => (t === 1 ? 1 : 1 - 2 ** (-10 * t));
         column.push({
           x, y, vx: 0, vy: 0, wx: 0, wy: 0, dx, dy, dist,
-          ox: ease(dx / diagonal) * gapX * 75 * (dist / reach),
-          oy: ease(dy / diagonal) * gapY * 75 * (dist / reach),
+          // 75 threw the lattice apart on hover; the bulge should bend the mesh
+          // around the disc, not evacuate the section
+          ox: ease(dx / diagonal) * gapX * 26 * (dist / reach),
+          oy: ease(dy / diagonal) * gapY * 26 * (dist / reach),
         });
       }
       this.columns.push(column);

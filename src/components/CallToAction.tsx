@@ -30,9 +30,11 @@ export function CallToAction() {
     if (!host || !stage || !button || !hover) return;
     if (prefersReducedMotion()) return;
 
-    // the lattice lives in the stage, not the whole section, so it stops cleanly
-    // where the closing band begins instead of running underneath it
-    const grid = new RippleGrid(stage, button);
+    // The lattice covers the whole panel, including the ground reserved at the
+    // top for the type bleeding down from the section above. Confining it to the
+    // stage left that reserved band blank white, so the type crossed the seam
+    // onto nothing.
+    const grid = new RippleGrid(host, button);
     const label = button.querySelector<HTMLElement>('.cta__label');
 
     // the idle heartbeat: swell, strike the lattice, snap back
@@ -76,7 +78,7 @@ export function CallToAction() {
     presence.observe(host);
 
     const resizeObserver = new ResizeObserver(() => grid.resize());
-    resizeObserver.observe(stage);
+    resizeObserver.observe(host);
 
     return () => {
       presence.disconnect();
@@ -99,6 +101,8 @@ export function CallToAction() {
           onClick={() => window.open(BRAND.repo, '_blank', 'noreferrer')}>
           <span className="cta__label">{BRAND.cta.button}</span>
         </button>
+
+        <span className="cta__ring" aria-hidden="true" />
 
         <div className="cta__disc" aria-hidden="true">
           <span className="cta__dots" />
