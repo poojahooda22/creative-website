@@ -25,7 +25,22 @@
 
   --head-h: 6rem;
   --edge: 1px;
+
+  /* The runway. The field's bottom padding, the amount it is allowed to bleed
+     past its own edge, and the space the closing panel reserves at its top are
+     all expressions of this one number. Hand-type any of them separately and
+     the giant type falls through into the panel. */
+  --pad: 40rem;
+  --bleed: 1.375;
+  --tail: 1.5;
+  --core-size: 5.6rem;
 }
+@media (max-width: 1680px) { :root { --pad: 35rem; } }
+@media (max-width: 1530px) { :root { --pad: 30rem; } }
+@media (max-width: 1280px) { :root { --pad: 25rem; } }
+@media (max-width: 987px)  { :root { --pad: 30rem; --bleed: 1.2; --tail: 1.25; } }
+@media (max-width: 767px)  { :root { --pad: 25rem; } }
+@media (max-width: 576px)  { :root { --pad: 18rem; } }
 /* Candidates for the second ground, swapped with ?alt=<name>.
    Every channel of each one sits inside the band the darken wipe needs:
    at or above the ink (21,10,8) so the artwork survives the panel, and at or
@@ -555,15 +570,19 @@ body {
    type recedes into it. That single shared point is what makes a fan of flat
    lines, a pile of transformed divs and a block of text read as one space. */
 .field {
-  position: relative; z-index: 4;   /* above the panel below, which it overlaps */
-  height: 100vh;
-  /* deliberately NOT hidden: the floor type is meant to run past the bottom
-     edge and over the next section. The card stage below keeps its own clip,
-     so the flying objects are still contained. */
-  overflow: visible;
-  --scroll-progress: 0.5;
+  position: relative; z-index: 4;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  /* almost all of this section is runway: a short approach above the core and a
+     long one below for the type to travel down */
+  padding: calc(var(--pad) * 0.75) 0 calc(var(--pad) * var(--tail));
+  /* A negative inset is a permission slip, not a crop. Nothing is clipped above
+     (cards rain in from a screen higher up), the sides are cut flush, and the
+     bottom is allowed to bleed by exactly the amount the closing panel reserves
+     for it. Free overflow let the type march the whole way down the panel. */
+  clip-path: inset(-100vh 0 calc(var(--pad) * var(--bleed) * -1));
+  --scroll-progress: 0;
   --distortion: 180;
-  --floor-perspective: 900px;
 }
 .field__rays {
   position: absolute; inset: 0;
@@ -579,9 +598,8 @@ body {
    running through it. Not a face: this page is about the thing that catches
    what you said, not about a character. */
 .field__core {
-  position: absolute; top: 34%; left: 50%;
-  width: 5.6rem; height: 5.6rem;
-  transform: translate3d(-50%, -50%, 0);
+  position: relative;
+  width: var(--core-size); height: var(--core-size);
   display: grid; place-items: center;
   z-index: 2;
 }
@@ -641,6 +659,10 @@ body {
   background: var(--ground);
   border: var(--edge) solid var(--ink);
   backface-visibility: visible;
+  /* load-bearing: the back face below is pushed away with translateZ, and
+     without a 3D context here that push is discarded and the back face lands
+     flat on top of the photo instead of behind it */
+  transform-style: preserve-3d;
 }
 /* the back face, so a card turning away is still a solid object */
 .flyer__face::after {
@@ -686,46 +708,66 @@ body {
 .flyer__side--y::before { top: 0; transform-origin: center top; transform: rotateX(90deg); }
 .flyer__side--y::after { bottom: 0; transform-origin: center bottom; transform: rotateX(-90deg); }
 
-/* -------------------------------------------------------- the floor type */
-/* A shear, not a rotation. The seventh number in the matrix pushes a point away
-   from the camera in proportion to how high it sits, so the block lies down as
-   a ground plane while every letter keeps its full height at the near edge.
-   Rotating it instead would foreshorten the bottom line and lose exactly the
-   thing that makes the last line enormous. */
-/* Spans from the vanishing point down to the floor of the section, and the
-   perspective converges on its top edge. That is what puts the far end of the
-   type at the core instead of at some horizon of its own. */
-.field__floor {
-  position: absolute; left: -100%; width: 300%;
-  top: var(--core-top, 34%); height: 92vh;
-  display: flex; align-items: flex-end;
-  perspective: var(--floor-perspective);
-  perspective-origin: 50% 0;
-  pointer-events: none;
-}
-/* The shear. The seventh number maps a point's height into depth, so with the
-   origin pinned to the bottom edge every line is pushed away from the camera in
-   proportion to how far above that edge it sits. The near line therefore keeps
-   its full height while the far one shrinks to nothing, which a rotation could
-   not do: rotating squashes the near edge too. */
-.field__floor-inner {
+/* ---------------------------------------------------------- the floor type */
+/* Rendered TWICE. The near copy is sheared into the floor and clipped to end at
+   the section's edge; the far copy is flat and starts one pixel above that same
+   edge, running down over the closing panel. As the block slides on scroll a
+   letter leaves the sheared clip and reappears in the flat one at the same
+   pixel, so the type walks off the floor and stands up. One copy alone can only
+   either stop dead at the boundary or overrun it. */
+.field__catcher {
+  --amplitude: 50%;
+  --offset: 15%;
+  position: absolute; bottom: 0; left: 0; z-index: 2;
   width: 100%;
-  transform-origin: 50% 100%;
-  transform: matrix3d(1, 0, 0, 0, 0, 1, var(--shear, 1.5), 0, 0, 0, 1, 0, 0, 0, 0, 1);
-}
-.field__floor-text {
-  /* Anchored at the bottom edge and pushed forward by scroll: the block starts
-     resting on the floor and walks off the near edge as the section passes,
-     rather than hovering in mid-air the whole way through. */
-  transform: translate3d(0, calc(var(--scroll-progress) * 68%), 0);
+  height: calc(var(--pad) * 1.05 + var(--core-size) / 2);
+  /* in em, because the shear throws points tens of thousands of pixels into
+     depth and the camera has to retreat in proportion to the type size */
+  perspective: calc(var(--distortion) * 0.85em);
   font-family: var(--font-display);
-  font-size: clamp(2.2rem, 6.4vw, 7.6rem);
-  line-height: 1.06;
-  text-align: center;
-  text-transform: uppercase;
+  font-size: calc(var(--pad) * 1.2);
+  line-height: 0.82;
+  text-align: center; text-transform: uppercase; white-space: nowrap;
   color: var(--ink);
+  user-select: none; pointer-events: none;
 }
-.field__floor-text span { display: block; }
+.field__catcher-wrap--near {
+  position: absolute; bottom: 0; left: 0; width: 100%;
+  height: calc(var(--pad) * var(--tail));
+  overflow: hidden;
+  perspective: calc(var(--distortion) * 0.7em);
+}
+/* the shear itself. It reads --distortion, which the engine computes from the
+   section diagonal; it used to read a --shear that nothing ever wrote, so it sat
+   on its fallback and the floor was barely tilted */
+.field__catcher-plane {
+  position: absolute; bottom: 0; left: -100%; width: 300%;
+  height: calc(var(--pad) * 1.05 + var(--core-size) / 2);
+  transform-origin: 50% 100%;
+  transform: matrix3d(1, 0, 0, 0, 0, 1, var(--distortion), 0, 0, 0, 1, 0, 0, 0, 0, 1);
+}
+/* the near edge of a sheared plane is enormously wider than the viewport, so the
+   plane overspills either side rather than having its corners sliced off */
+.field__catcher-wrap--far {
+  position: absolute; top: calc(100% - 1px); left: 0; width: 100%;
+  height: calc(100% + 100vh);
+  overflow: hidden;
+}
+.field__catcher-plane--flat {
+  position: absolute; top: 0; left: -100%; width: 300%; height: 100%;
+}
+.field__catcher-text { position: absolute; left: 0; width: 100%; will-change: transform; }
+.field__catcher-text--near {
+  bottom: 0;
+  transform: translate3d(0, calc(var(--scroll-progress) * var(--amplitude) - var(--offset)), 0);
+}
+/* lifted by its own full height first: the copies are anchored to opposite
+   edges, and without that term the type jumps at the seam */
+.field__catcher-text--far {
+  top: 0;
+  transform: translate3d(0, calc(var(--scroll-progress) * var(--amplitude) - 100% - var(--offset)), 0);
+}
+.field__catcher-text span { display: block; }
 
 @media (max-width: 900px) {
   .field { height: 120vh; }
@@ -741,19 +783,20 @@ body {
 /* -------------------------------------------------------- the closing panel */
 .cta {
   position: relative; z-index: 3;
-  height: 100vh;
+  /* the reservation: the field is allowed to bleed this far down, so this much
+     empty ground is kept clear at the top for it to land on */
+  padding-top: calc(var(--pad) * var(--bleed));
   display: flex; flex-direction: column;
-  border-top: var(--edge) solid var(--ink);
 }
 /* the lattice is confined here, so it stops at the rule above the closing band
    rather than running on underneath the mark */
 .cta__stage {
-  position: relative; flex: 1 1 auto;
+  position: relative; flex: none; height: calc(100vh - 8rem - 2px);
   display: grid; place-items: center;
   overflow: hidden;
 }
 .cta__foot {
-  flex: none; width: 100%;
+  flex: none; width: 100%; height: 20vh;
   border-top: var(--edge) solid var(--ink);
   background: var(--ground);
   padding: 3rem 0;
@@ -771,11 +814,17 @@ body {
 
 /* the hover target is the whole hit area, so the disc does not flicker as the
    pointer crosses from the button onto the disc it just opened */
+/* Sized to the disc plus a margin, NOT to the whole lattice. Making this the
+   full stage meant the disc opened as soon as the pointer entered the section
+   and only closed when it left the section entirely, which reads as stuck.
+   A box that hugs the disc gives a real edge to cross in both directions. */
 .cta__hover {
   position: relative;
-  width: min(38rem, 62vh, 78vw); aspect-ratio: 1;
+  width: min(66vh, 50rem, 90vw); aspect-ratio: 1;
   display: grid; place-items: center;
 }
+/* button and disc share one grid cell, so both sit centred and stacked */
+.cta__button, .cta__disc { grid-area: 1 / 1; }
 
 .cta__button {
   position: relative; z-index: 3;
@@ -804,7 +853,8 @@ body {
 /* The disc opens as a growing circular clip rather than a scale, so its edge
    stays a true circle at every size and the type inside never stretches. */
 .cta__disc {
-  position: absolute; inset: 0; z-index: 2;
+  position: relative; z-index: 2;
+  width: min(58vh, 44rem, 84vw); aspect-ratio: 1;
   border-radius: 50%;
   background: var(--ink);
   display: grid; place-items: center; align-content: center; gap: 1.2rem;

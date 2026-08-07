@@ -85,9 +85,28 @@ export function MemoryField() {
             <div className="flyer is-parked" key={i}>
               <div className="flyer__face">
                 <span className="flyer__plate">
-                  {episode.image
-                    ? <img src={`/episodes/${episode.image}`} alt="" />
-                    : null}
+                  {episode.image ? (
+                    <img
+                      src={`/episodes/${episode.image}`}
+                      alt=""
+                      width={384}
+                      height={512}
+                      /* eager, not lazy: these sit far off-screen at rest, and the
+                         browser never counts them as "in viewport", so a lazy
+                         image can go the whole page without decoding and the
+                         first flight shows an empty frame */
+                      loading="eager"
+                      decoding="async"
+                      draggable={false}
+                      /* A missing file is silent in dev: the server answers a
+                         404 with the app's own HTML and a 200, so the tag fails
+                         as "not an image" and logs nothing. Say so out loud. */
+                      onError={(event) => {
+                        console.error('episode image failed to load:',
+                          (event.currentTarget as HTMLImageElement).src);
+                      }}
+                    />
+                  ) : null}
                 </span>
                 <span className="flyer__caption">{episode.caption}</span>
               </div>

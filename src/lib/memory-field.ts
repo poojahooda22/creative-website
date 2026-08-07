@@ -110,10 +110,8 @@ export class MemoryField {
     // monitor instead of flattening out as the viewport grows.
     const distortion = Math.hypot(this.width, (this.height - this.centreY) / 2) * 0.14;
     this.host.style.setProperty('--distortion', distortion.toFixed(2));
-    this.host.style.setProperty('--floor-perspective', `${(distortion * 5).toFixed(0)}px`);
-    // the floor starts at the vanishing point, so the type recedes into the
-    // same place the rays converge on rather than into its own private horizon
-    this.host.style.setProperty('--core-top', `${this.centreY.toFixed(1)}px`);
+    // perspective is expressed in em in the stylesheet, against the display
+    // size, so nothing is written here for it
 
     const top = rect.top + window.scrollY;
     this.start = top;

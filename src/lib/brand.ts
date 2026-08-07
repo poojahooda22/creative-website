@@ -143,14 +143,12 @@ export const BRAND = {
    * name here and it appears with no other change.
    */
   episodes: [
-    { caption: 'MONTY · GOA · JAN 2023' },
-    { caption: 'ALLERGIC TO PEANUTS · 2021' },
-    { caption: 'PREFERS SHORT ANSWERS · MAR' },
-    { caption: 'MOVED TO BERLIN · SEP 2024' },
-    { caption: 'SHIPPED V1 · 03:14' },
-    { caption: 'CALLS IT THE BUBBLES BOARD' },
-    { caption: 'HATES BEING ASKED TWICE' },
-    { caption: 'SUMMIT 4,130 M · SEP 2021' },
+    { caption: 'MONTY · GOA · JAN 2023', image: 'dog.jpg' },
+    { caption: 'THE VILLAGE ABOVE THE LAKE', image: 'village.jpg' },
+    { caption: 'BLUE LAGOON · MAR 2023', image: 'lagoon.jpg' },
+    { caption: 'RODE THE RIDGE · SEP 2021', image: 'ridge.jpg' },
+    { caption: 'KYOTO · APR 2024', image: 'pagoda.jpg' },
+    { caption: 'THE COVE · JUN 2023', image: 'cove.jpg' },
   ] as readonly { caption: string; image?: string }[],
 
   /**
