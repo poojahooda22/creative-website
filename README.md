@@ -1,4 +1,4 @@
-# creative-website
+# Chat Memory showcase website
 
 An animated product landing page built around three interactions: a curtain of lines you can comb
 with the cursor, display type whose letters flip in place, and a full-screen wipe that changes the
