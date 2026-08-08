@@ -21,7 +21,7 @@
    everywhere. Pick one outside that band and either the panel stops covering
    or it starts eating the artwork. */
 :root {
-  --ground: #FFF3EE;       /* warm white: the page          (255,243,238) */
+  --ground: #FFFFFF;       /* the page                      (255,255,255) */
   --ink: #150A08;          /* near black: lines, type       ( 21, 10,  8) */
   --ink-soft: rgba(21, 10, 8, 0.55);
   --hairline: rgba(21, 10, 8, 0.28);
@@ -70,7 +70,7 @@
 /* Candidates for the second ground, swapped with ?alt=<name>.
    Every channel of each one sits inside the band the darken wipe needs:
    at or above the ink (21,10,8) so the artwork survives the panel, and at or
-   below the light ground (255,243,238) so the panel actually covers the page.
+   below the light ground (255,255,255) so the panel actually covers the page.
    A colour with a channel at 0, or a pastel above the ground, breaks one end
    of that and the wipe stops being exact. */
 :root[data-alt="red"]    { --theme-alt: #F40C3F; }  /* crimson    (244, 12, 63) */
