@@ -936,7 +936,16 @@ body {
   background: var(--ink); color: var(--ground);
   border: 0; cursor: pointer;
   display: grid; place-items: center;
+  /* The word on a control is a label, not a passage: nobody drags across a
+     button to copy it. Left selectable, a stray drag anywhere near the disc
+     highlights it, and the browser paints its own box around the word — three
+     visible edges of a rectangle sitting inside the circle, with no way for the
+     reader to know what it is or how to clear it. */
+  user-select: none;
 }
+/* Same reasoning, and the disc is marked decorative to assistive tech already:
+   the letters inside it are a drawing that happens to be made of type. */
+.cta__disc { user-select: none; }
 .cta__label {
   display: block;
   font-family: var(--font-display); font-size: 1.6rem;
